@@ -50,7 +50,7 @@ cohort_query = text("""
             ELSE 'No'
         END)::BOOLEAN AS is_active
     FROM raw.cohort_details mapping
-    JOIN vg_prod.program program
+    JOIN intermediate.program program
         ON LOWER(mapping."Program Name") = LOWER(program.full_form)
     """)
 
@@ -59,7 +59,7 @@ live_session_query = text("""
         SELECT
             cohort_code,
             cohort_name
-        FROM vg_prod.cohort
+        FROM intermediate.cohort
     ),
     session_cte AS (
         SELECT 
@@ -73,12 +73,12 @@ live_session_query = text("""
     ),
     live_session_cte AS (
         SELECT
-            c.cohort_code::VARCHAR(6),
-            s.name::TEXT,
+            c.cohort_code::VARCHAR(6) AS cohort_code,
+            s.name::TEXT AS session_name,
             s.type::session_type_enum,
             s.code::TEXT,
-            s.duration_in_sec::INT,
-            TO_DATE(s.conducted_on, 'DD-MM-YYYY') AS conducted_on       ---ensures compatibility across environments (local and EC2), regardless of PostgreSQL’s datestyle as it raw schema date format is "DD/MM/YYYY"
+            s.duration_in_sec::INT AS duration_in_sec,
+            TO_DATE(s.conducted_on, 'DD-Mon-YY') AS conducted_on       ---ensures compatibility across environments (local and EC2), regardless of PostgreSQL’s datestyle as it raw schema date format is "DD/MM/YYYY"
         FROM session_cte s
         INNER JOIN cohort_cte c
             ON LOWER(TRIM(s.cohort_name)) = LOWER(TRIM(c.cohort_name))
@@ -91,7 +91,7 @@ student_session_query = text("""
         SELECT
             cohort_code,
             cohort_name
-        FROM vg_prod.cohort
+        FROM intermediate.cohort
     ),
     raw_general_info_data AS (
         SELECT
@@ -103,10 +103,10 @@ student_session_query = text("""
     session_data AS (
         SELECT
             id AS session_id,
-            name,
+            session_name,
             cohort_code,
             code
-        FROM vg_prod.live_session
+        FROM intermediate.live_session
     ),
     raw_student_session_info AS (
         SELECT
@@ -155,7 +155,7 @@ student_pre_recorded_query = text("""
         SELECT
             cohort_code,
             cohort_name
-        FROM vg_prod.cohort
+        FROM intermediate.cohort
     ),
     raw_general_info_data AS (
         SELECT
@@ -169,7 +169,7 @@ student_pre_recorded_query = text("""
             id AS resource_id,
             title,
             total_duration AS watchtime_in_sec
-        FROM vg_prod.resource
+        FROM intermediate.resource
     ),
     student_session_info AS (
         SELECT
@@ -197,6 +197,78 @@ student_pre_recorded_query = text("""
     SELECT * FROM student_pre_recorded_data
 """)
 
+student_assignment_query = text("""
+    WITH cohort_data AS (
+        SELECT
+            cohort_code,
+            cohort_name
+        FROM intermediate.cohort 
+    ),
+
+
+    raw_general_info_data AS (
+        SELECT
+            "Incubator_Course_Name" AS cohort_name,
+            "Student_id" AS student_id,
+            "Email" as email
+        FROM raw.general_information_sheet
+    ),
+    
+
+    assignment_data AS (
+        SELECT
+            "assignment_name" AS name,
+            "Email" AS email,
+            "student_name" AS student_name,
+            "submission_status" AS submission_status,
+            "feedback_comments" As feedback,
+            "submitted_at" AS submitted_at,
+            "assignment_file" AS assignment_file
+        FROM raw.assignment_monitoring_data
+    ),
+
+
+        
+    resource_data AS (
+        SELECT 
+            id AS resource_id,
+            title,                --VID01,VID02,Assignment,Quiz...
+            total_duration AS watchtime_in_sec
+        FROM intermediate.resource
+        WHERE category = 'Assignment'  -- <-- Only select Assignment resources
+    ),  
+
+
+    student_assignment_data AS (
+        SELECT
+            g.student_id::INT AS student_id,
+            r.resource_id::INT AS resource_id,
+            NULL::INT AS mentor_id,
+            c.cohort_code::VARCHAR(6) AS cohort_code,
+            a.submission_status::intermediate.submission_status_enum AS submission_status,
+            (CASE 
+                WHEN a.submission_status = 'under_review' THEN 30
+                WHEN a.submission_status = 'reviewed' THEN 100
+                WHEN a.submission_status = 'rejected' THEN 80
+                ELSE 0
+            END)::DECIMAL AS marks_pct,
+            a.feedback::TEXT AS feedback_comments,
+            a.submitted_at::TIMESTAMP AS submitted_at,
+            a.assignment_file::TEXT AS assignment_file
+
+        FROM assignment_data a
+        INNER JOIN raw_general_info_data g
+            ON a.email = g.email
+        INNER JOIN cohort_data c
+            ON g.cohort_name = c.cohort_name 
+        INNER JOIN resource_data r
+            ON a.name = r.title
+    )
+
+    SELECT * FROM student_assignment_data
+                                
+""")
+
 student_quiz_query = text("""
     WITH raw_general_info_data AS (
         SELECT
@@ -216,14 +288,14 @@ student_quiz_query = text("""
         SELECT
             cohort_code,
             cohort_name
-        FROM vg_prod.cohort
+        FROM intermediate.cohort
     ),
     resource_data AS (
         SELECT 
             id AS resource_id,
             title,
             total_duration AS watchtime_in_min
-        FROM vg_prod.resource
+        FROM intermediate.resource
         WHERE category = 'Quiz'
     ),
     student_quiz_data AS (
@@ -257,15 +329,18 @@ try:
     resource_df = pd.read_sql(resource_query, engine)
     student_pre_recorded_df = pd.read_sql(student_pre_recorded_query, engine)
     quiz_df = pd.read_sql(student_quiz_query, engine)
+    student_assignment_df = pd.read_sql(student_assignment_query, engine)
+    
 
     # Insert into target table (append only)
-    programs_df.to_sql("program", engine, if_exists="append", index=False,schema="vg_prod")
-    cohort_df.to_sql("cohort", engine, if_exists="append", index=False,schema="vg_prod")
-    live_session_df.to_sql("live_session", engine, if_exists="append", index=False, schema="vg_prod")
-    student_live_df.to_sql("student_session", engine, if_exists="append", index=False, schema="vg_prod")
-    resource_df.to_sql("resource", engine, if_exists="append", index=False, schema="vg_prod")
-    student_pre_recorded_df.to_sql("student_pre_recorded", engine, if_exists="append", index=False, schema="vg_prod")
-    quiz_df.to_sql("student_quiz", engine, if_exists="append", index=False, schema="vg_prod")
+    programs_df.to_sql("program", engine, if_exists="append", index=False,schema="intermediate")
+    cohort_df.to_sql("cohort", engine, if_exists="append", index=False,schema="intermediate")
+    live_session_df.to_sql("live_session", engine, if_exists="append", index=False, schema="intermediate")
+    student_live_df.to_sql("student_session", engine, if_exists="append", index=False, schema="intermediate")
+    resource_df.to_sql("resource", engine, if_exists="append", index=False, schema="intermediate")
+    student_pre_recorded_df.to_sql("student_pre_recorded", engine, if_exists="append", index=False, schema="intermediate")
+    quiz_df.to_sql("student_quiz", engine, if_exists="append", index=False, schema="intermediate")
+    student_assignment_df.to_sql("student_assignment", engine, if_exists="append", index=False, schema="intermediate")
 
     print("Data inserted successfully into 'program, cohort, live_session, student_live_session, resource, student_pre_recorded, student_quiz'.")
 
