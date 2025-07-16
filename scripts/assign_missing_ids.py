@@ -17,7 +17,7 @@ connection_string = f"postgresql+psycopg2://{username}:{password}@{host}:{port}/
 engine = create_engine(connection_string)
 
 # Schema and table
-schema_name = "final"
+schema_name = "raw"
 table_name = "general_information_sheet"
 id_column = "Student_id"  # Case sensitive column name
 
