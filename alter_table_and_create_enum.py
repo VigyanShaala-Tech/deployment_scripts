@@ -3,7 +3,7 @@ from sqlalchemy import create_engine, text
 from dotenv import load_dotenv
 
 # Load environment variables
-load_dotenv("configuration.env")
+load_dotenv("config.env")
 
 # Database credentials
 db_user = os.getenv("DB_USER")
