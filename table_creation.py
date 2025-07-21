@@ -3,7 +3,7 @@ from sqlalchemy import create_engine, text
 from dotenv import load_dotenv
 
 # Load environment variables
-load_dotenv("configuration.env")
+load_dotenv("config.env")
 
 # Get DB credentials from .env
 db_user = os.getenv("DB_USER")
@@ -31,7 +31,7 @@ create_student_details_table = text(f"""
         email VARCHAR(254),
         first_name VARCHAR(100),
         last_name VARCHAR(100),
-        gender gender_enum,
+        gender {schema}.gender_enum,
         phone VARCHAR(15),
         date_of_birth DATE,
         caste text,
@@ -97,7 +97,7 @@ create_program_table = text(f"""
 
     -- Create table with proper foreign keys
     CREATE TABLE IF NOT EXISTS {schema}.program (
-        program_code program_code_enum PRIMARY KEY,
+        program_code {schema}.program_code_enum PRIMARY KEY,
         full_form VARCHAR(20),
         start_date DATE
     );
@@ -108,7 +108,7 @@ create_cohort_table = text(f"""
     -- Create table with proper foreign keys
     CREATE TABLE IF NOT EXISTS {schema}.cohort (
         cohort_code VARCHAR(6) NOT NULL PRIMARY KEY,         -- e.g., INC001
-        program_code program_code_enum,                             -- e.g., INC, STC, ACC
+        program_code {schema}.program_code_enum,                             -- e.g., INC, STC, ACC
         cohort_number INT,
         cohort_name VARCHAR(300),
         type text,                               -- enum: 'open' or 'curriculum'
@@ -127,7 +127,7 @@ create_resource_table = text(f"""
     -- Create table with proper foreign keys
     CREATE TABLE IF NOT EXISTS {schema}.resource (
         id serial PRIMARY KEY,
-        category resource_category,
+        category {schema}.resource_category,
         title VARCHAR(300),
         description TEXT,
         location TEXT,
@@ -145,7 +145,7 @@ create_live_session_table = text(f"""
         id serial PRIMARY KEY,
         cohort_code VARCHAR(6),
         session_name TEXT,
-        type session_type_enum,  -- enum: masterclass, SUK, workshop
+        type {schema}.session_type_enum,  -- enum: masterclass, SUK, workshop
         code TEXT,
         duration_in_sec INT,
         conducted_on TIMESTAMP,
@@ -249,7 +249,7 @@ create_student_assignment_table = text(f"""
 # Run the creation script
 try:
     with engine.begin() as conn:  # begin() ensures transaction safety
-        #conn.execute(create_student_details_table)
+        conn.execute(create_student_details_table)
         conn.execute(create_referral_college_professor_table)
         conn.execute(create_student_registration_details_table)
         conn.execute(create_student_education)
@@ -257,11 +257,11 @@ try:
         conn.execute(create_cohort_table)
         conn.execute(create_resource_table)
         conn.execute(create_live_session_table)
-        #conn.execute(create_student_session_table)
-        #conn.execute(create_student_pre_recorded_table)
-        #conn.execute(create_student_quiz_table)
-        #conn.execute(create_mentor_details_table)
-        #conn.execute(create_student_assignment_table)
+        conn.execute(create_student_session_table)
+        conn.execute(create_student_pre_recorded_table)
+        conn.execute(create_student_quiz_table)
+        conn.execute(create_mentor_details_table)
+        conn.execute(create_student_assignment_table)
 
 
         print("✅ table created successfully.")
