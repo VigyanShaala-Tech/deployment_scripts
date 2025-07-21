@@ -6,7 +6,7 @@ from sqlalchemy import create_engine, text
 from dotenv import load_dotenv
 
 #Load .env file
-load_dotenv("configuration.env")
+load_dotenv("config.env")
 
 #Read DB credentials
 db_user = os.getenv("DB_USER")
@@ -21,17 +21,17 @@ engine = create_engine(f"postgresql+psycopg2://{db_user}:{db_pass}@{db_host}:{db
 # SQL with PostgreSQL-style casting to match table datatypes
 programs_query = text("""
     SELECT 
-        'INC'::program_code_enum AS program_code,
+        'INC'::intermediate.program_code_enum AS program_code,
         'Incubator'::VARCHAR(20) AS full_form,
         NULL::DATE AS start_date
     UNION ALL
     SELECT 
-        'ACC'::program_code_enum,
+        'ACC'::intermediate.program_code_enum,
         'Accelerator'::VARCHAR(20),
         NULL::DATE
     UNION ALL
     SELECT 
-        'STC'::program_code_enum,
+        'STC'::intermediate.program_code_enum,
         'Stem Champion'::VARCHAR(20),
         NULL::DATE
 """)
@@ -39,7 +39,7 @@ programs_query = text("""
 cohort_query = text("""
     SELECT
         program.program_code || RIGHT('000' || mapping."Cohort number"::TEXT, 3)::VARCHAR(6) AS cohort_code,
-        program.program_code::program_code_enum AS program_code,
+        program.program_code::intermediate.program_code_enum AS program_code,
         mapping."Cohort number"::INT AS cohort_number,
         mapping."Cohort Name"::VARCHAR(300) AS cohort_name,
         mapping."Type"::TEXT AS type,
@@ -75,10 +75,10 @@ live_session_query = text("""
         SELECT
             c.cohort_code::VARCHAR(6) AS cohort_code,
             s.name::TEXT AS session_name,
-            s.type::session_type_enum,
+            s.type::intermediate.session_type_enum,
             s.code::TEXT,
             s.duration_in_sec::INT AS duration_in_sec,
-            TO_DATE(s.conducted_on, 'DD-Mon-YY') AS conducted_on       ---ensures compatibility across environments (local and EC2), regardless of PostgreSQL’s datestyle as it raw schema date format is "DD/MM/YYYY"
+            TO_DATE(s.conducted_on, 'DD-MM-YY') AS conducted_on       ---ensures compatibility across environments (local and EC2), regardless of PostgreSQL’s datestyle as it raw schema date format is "DD/MM/YYYY"
         FROM session_cte s
         INNER JOIN cohort_cte c
             ON LOWER(TRIM(s.cohort_name)) = LOWER(TRIM(c.cohort_name))
@@ -138,7 +138,7 @@ student_session_query = text("""
 resource_query = text("""
     WITH resource_cte AS (
         SELECT 
-            "Category"::resource_category AS category,
+            "Category"::intermediate.resource_category AS category,
             "Title"::VARCHAR(300) AS title,
             "Content Name"::TEXT AS description,
             NULL::TEXT AS location,
@@ -319,30 +319,34 @@ student_quiz_query = text("""
 """)
 
 try:
-    # Load as DataFrame
+    # Load as DataFrame and Insert into target table (append only)
     programs_df = pd.read_sql(programs_query, engine)
-    cohort_df = pd.read_sql(cohort_query, engine) 
-    live_session_df = pd.read_sql(live_session_query, engine) 
-    #print(live_session_df.shape)
-    #print(live_session_df['cohort_code'].unique())
-    student_live_df = pd.read_sql(student_session_query, engine)
-    resource_df = pd.read_sql(resource_query, engine)
-    student_pre_recorded_df = pd.read_sql(student_pre_recorded_query, engine)
-    quiz_df = pd.read_sql(student_quiz_query, engine)
-    student_assignment_df = pd.read_sql(student_assignment_query, engine)
+    programs_df.to_sql("program", engine, if_exists="append", index=False,schema="intermediate")
+
+    #cohort_df = pd.read_sql(cohort_query, engine) 
+    #cohort_df.to_sql("cohort", engine, if_exists="append", index=False,schema="intermediate")
+
+    #live_session_df = pd.read_sql(live_session_query, engine) 
+    #live_session_df.to_sql("live_session", engine, if_exists="append", index=False, schema="intermediate")
+    
+    #student_live_df = pd.read_sql(student_session_query, engine)
+    #student_live_df.to_sql("student_session", engine, if_exists="append", index=False, schema="intermediate")
+
+    #resource_df = pd.read_sql(resource_query, engine)
+    #resource_df.to_sql("resource", engine, if_exists="append", index=False, schema="intermediate")
+
+    #student_pre_recorded_df = pd.read_sql(student_pre_recorded_query, engine)
+    #student_pre_recorded_df.to_sql("student_pre_recorded", engine, if_exists="append", index=False, schema="intermediate")
+
+    #quiz_df = pd.read_sql(student_quiz_query, engine)
+    #quiz_df.to_sql("student_quiz", engine, if_exists="append", index=False, schema="intermediate")
+
+    #student_assignment_df = pd.read_sql(student_assignment_query, engine)
+    #student_assignment_df.to_sql("student_assignment", engine, if_exists="append", index=False, schema="intermediate")
     
 
-    # Insert into target table (append only)
-    programs_df.to_sql("program", engine, if_exists="append", index=False,schema="intermediate")
-    cohort_df.to_sql("cohort", engine, if_exists="append", index=False,schema="intermediate")
-    live_session_df.to_sql("live_session", engine, if_exists="append", index=False, schema="intermediate")
-    student_live_df.to_sql("student_session", engine, if_exists="append", index=False, schema="intermediate")
-    resource_df.to_sql("resource", engine, if_exists="append", index=False, schema="intermediate")
-    student_pre_recorded_df.to_sql("student_pre_recorded", engine, if_exists="append", index=False, schema="intermediate")
-    quiz_df.to_sql("student_quiz", engine, if_exists="append", index=False, schema="intermediate")
-    student_assignment_df.to_sql("student_assignment", engine, if_exists="append", index=False, schema="intermediate")
 
-    print("Data inserted successfully into 'program, cohort, live_session, student_live_session, resource, student_pre_recorded, student_quiz'.")
+    print("Data inserted successfully into tables.")
 
 except Exception as e:
     print("Error during insertion:", e)
