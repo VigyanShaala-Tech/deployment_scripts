@@ -59,10 +59,16 @@ def insert_multiple_columns():
                 entry.update(row_values)
                 params.append(entry)
 
-            conn.execute(insert_query, params)
+            print(params)
+            yes_no = input("Want to continue (yes/no): ").strip()
+            if yes_no == "yes":
+                conn.execute(insert_query, params)
+            else:
+                print("Exiting")
+                return
 
             print(f"\n{row_count} records inserted successfully into {table_name}.")
-
+            
     except Exception as e:
         print("Transaction failed, no records were inserted.")
         print("Error details:", e)
