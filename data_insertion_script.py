@@ -247,7 +247,7 @@ student_assignment_query = text("""
             c.cohort_code::VARCHAR(6) AS cohort_code,
             a.submission_status::intermediate.submission_status_enum AS submission_status,
             (CASE 
-                WHEN a.submission_status = 'under_review' THEN 30
+                WHEN a.submission_status = 'under review' THEN 30
                 WHEN a.submission_status = 'reviewed' THEN 100
                 WHEN a.submission_status = 'rejected' THEN 80
                 ELSE 0
