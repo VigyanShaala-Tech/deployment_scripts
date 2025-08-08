@@ -26,7 +26,7 @@ enum_definitions = {
     "program_code_enum": ['INC', 'ACC', 'STC'],
     "cohort_type_enum": ['open', 'curriculum'],
     "resource_category": ['Pre-recorded Video', 'Quiz', 'Assignment'],
-    "submission_status_enum": ['under review', 'reviewed', 'rejected'],
+    "submission_status_enum": ['under review', 'reviewed', 'rejected','submitted'],
     "session_type_enum": ['Masterclass', 'Speak Up Kalpana Session', 'Workshop']
 }
 
