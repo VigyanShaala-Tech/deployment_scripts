@@ -23,12 +23,21 @@ email_column = "Email"  # Replace with the exact column name in your table
 
 # List of emails to delete
 emails_to_delete = [
-"Sreejith2288@gmail.com",
-"SPj@gmail.com",
-"tes55@gmail.com",
-"sreejith.sreenivasan@vigyanshaala.com",
-"muskangupta5692339@gmail.com",
 "test@gmail.com"
+"muskangupta5692339@gmail.com"
+"sreejith.sreenivasan@vigyanshaala.com"
+"tes55@gmail.com"
+"SPj@gmail.com"
+"Sreejith2288@gmail.com"
+"THisisTrial@gmail.com"
+"test123@gmail.com"
+"Sreejith2287@gmail.com"
+"testtest@gmail.com"
+"muskangupta5692339mg@gmail.com"
+"test12355@gmail.com"
+"testdfdfdfd@gmail.com"
+"testtest123@gmail.com"
+"tests@gmail.com"
 ]  #Will add all email ids that are present in our general_info_sheet later above are test emails
 
 # Delete rows
