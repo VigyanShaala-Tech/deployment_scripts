@@ -26,7 +26,7 @@ def import_csv_to_db(folder_path, engine):
             file_path = os.path.join(folder_path, file)
             table_name = file.rsplit(".", 1)[0].replace(" ", "_").lower()
             df = pd.read_csv(file_path , encoding="ISO-8859-1", sep=None, engine='python')
-            df.to_sql(table_name, engine, if_exists="fail", index=False)
+            df.to_sql(table_name, engine, schema = 'raw', if_exists="fail", index=False)
             print(f"Table '{table_name}' created Successfully.")
 
 # Give the folder path as a command line argument(ex: python3/python final_code_loading_csv_db.py /path/to/folder)
@@ -37,6 +37,6 @@ if len(sys.argv) != 2:
 
 
 folder_path = sys.argv[1]
-config = load_env("configuration.env")
+config = load_env("config.env")
 engine = loading_engine(config)
 import_csv_to_db(folder_path, engine)
