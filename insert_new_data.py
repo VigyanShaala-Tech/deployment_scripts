@@ -12,7 +12,7 @@ DB_PASSWORD = os.getenv("DB_PASSWORD")
 DB_HOST = os.getenv("DB_HOST")
 DB_PORT = os.getenv("DB_PORT", "5432")
 DB_NAME = os.getenv("DB_NAME")
-TABLE_NAME = "raw.general_information_schema"  # Change this to your target table
+TABLE_NAME = "raw.general_information_sheet"  # Change this to your target table
 
 
 # Database connection
