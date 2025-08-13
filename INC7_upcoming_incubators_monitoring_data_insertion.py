@@ -203,4 +203,4 @@ with engine.begin() as conn:
     #conn.execute(student_session_query)
     conn.execute(student_quiz_query)
 
-print("✅ Data for Incubator 7.0 appended to student_assignment and student_session tables.")
+print(" * Data for Incubator 7.0 appended to student_assignment,student_session and student_quiz tables.")
