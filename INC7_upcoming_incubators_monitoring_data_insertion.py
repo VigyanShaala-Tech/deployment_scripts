@@ -199,8 +199,11 @@ student_quiz_query = text("""
 
 # Execute queries
 with engine.begin() as conn:
-    #conn.execute(student_assignment_query)
-    #conn.execute(student_session_query)
-    conn.execute(student_quiz_query)
+    assignment_result = conn.execute(student_assignment_query)
+    #session_result = conn.execute(student_session_query)
+    #quiz_result = conn.execute(student_quiz_query)
 
 print(" * Data for Incubator 7.0 appended to student_assignment,student_session and student_quiz tables.")
+print(f"   - student_assignment: {assignment_result.rowcount} rows inserted.")
+#print(f"   - student_session: {session_result.rowcount} rows inserted.")
+#print(f"   - student_quiz: {quiz_result.rowcount} rows inserted.")
