@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 import os
 
 # Load environment variables
-load_dotenv(r"deployment_scripts\config.env")
+load_dotenv("config.env")
 
 DB_USER = os.getenv("DB_USER")
 DB_PASSWORD = os.getenv("DB_PASSWORD")
