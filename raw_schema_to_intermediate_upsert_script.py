@@ -4,7 +4,7 @@ from sqlalchemy import create_engine, text
 from dotenv import load_dotenv
 
 # Load .env file
-load_dotenv(r"config.env")
+load_dotenv("config.env")
 
 # Read DB credentials
 db_user = os.getenv("DB_USER")
@@ -111,7 +111,7 @@ student_session_query = text("""
             g.student_id::INT AS student_id,
             s.session_id::INT AS session_id,
             ssi.duration_in_sec::INT AS duration_in_sec,
-            NULLIF(ssi.watched_on, 'NaN')::DATE AS watched_on
+            ssi.watched_on::DATE AS watched_on
         FROM raw_student_session_info ssi
         INNER JOIN raw_general_info_data g ON ssi.email = g.email
         INNER JOIN cohort_data c ON g.cohort_name = c.cohort_name

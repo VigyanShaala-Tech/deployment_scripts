@@ -107,6 +107,9 @@ def import_csv_to_db(folder_path, engine, filter_text):
                         print(f"** Skipping {file}: Missing required columns.")
                         continue
 
+                    # Replace 'NaN', nan, or empty with None before upsert
+                    df['watched_on'] = df['watched_on'].replace(['NaN', 'nan', ''], None)
+
                     with engine.begin() as conn:
 
                         # Add unique constraint if not already present
@@ -139,12 +142,14 @@ def import_csv_to_db(folder_path, engine, filter_text):
 
                         # Perform upsert
                         for _, row in df.iterrows():
+                            watched_on_value = row['watched_on'] if pd.notna(row['watched_on']) else None
+
                             stmt = text(f"""
                                 INSERT INTO {schema}."{table_name}" 
                                     ("Email", "Session_Code", "Duration_in_hrs", "Duration_in_secs", "watched_on")
                                 VALUES 
                                     (:Email, :Session_Code, :Duration_in_hrs, :Duration_in_secs, :watched_on)
-                                ON CONFLICT ("Email", "Session_Code")
+                                ON CONFLICT ("Email", "Session_Code")                                
                                 DO UPDATE SET
                                     "Duration_in_hrs" = EXCLUDED."Duration_in_hrs",
                                     "Duration_in_secs" = EXCLUDED."Duration_in_secs",
@@ -155,7 +160,7 @@ def import_csv_to_db(folder_path, engine, filter_text):
                                 "Session_Code": row['Session_Code'],
                                 "Duration_in_hrs": row['Duration_in_hrs'],
                                 "Duration_in_secs": row['Duration_in_secs'],
-                                "watched_on": row['watched_on']
+                                "watched_on": watched_on_value
                             })
                         print("Data upserted successfully")
 
