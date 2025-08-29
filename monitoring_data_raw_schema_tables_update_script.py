@@ -108,7 +108,9 @@ def import_csv_to_db(folder_path, engine, filter_text):
                         continue
 
                     # Replace 'NaN', nan, or empty with None before upsert
-                    df['watched_on'] = df['watched_on'].replace(['NaN', 'nan', ''], None)
+                    df['watched_on'] = df['watched_on'].replace(['NaN', 'nan', '', float('nan')], None)
+                    df['Duration_in_hrs'] = df['Duration_in_hrs'].replace(['NaN', 'nan', '', float('nan')], None)
+                    df['Duration_in_secs'] = df['Duration_in_secs'].replace(['NaN', 'nan', '', float('nan')], None)
 
                     with engine.begin() as conn:
 
@@ -226,4 +228,3 @@ if __name__ == "__main__":
     config = load_env("config.env")
     engine = loading_engine(config)
     import_csv_to_db(folder_path, engine, filter_text)
-
