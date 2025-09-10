@@ -143,7 +143,7 @@ live_sessions AS (
 student_attendance AS (
     SELECT 
         sd.student_id,
-        gs."Incubator_Batch" AS incubator_batch,
+        gis."Incubator_Batch" AS incubator_batch,
         sdet.location_id,
         ls.id AS session_id,
         ls.session_name AS title,
@@ -155,10 +155,10 @@ student_attendance AS (
     FROM intermediate.student_session sd
     JOIN live_sessions ls
         ON sd.session_id = ls.id
-    JOIN raw.general_information_sheet gs
-        ON sd.student_id = gs."Student_id"
     JOIN intermediate.student_details sdet
         ON sd.student_id = sdet.id
+    JOIN raw.general_information_sheet gis
+        ON sdet.email = gis."Email"
 ),
 
 student_registration AS (
@@ -263,10 +263,11 @@ WITH student_assignment AS (
     FROM intermediate.student_assignment sd
     JOIN intermediate.resource gs
         ON sd.resource_id = gs.id
-    LEFT JOIN raw.general_information_sheet gis
-        ON sd.student_id = gis."Student_id"
-    LEFT JOIN intermediate.student_details sds
+    JOIN intermediate.student_details sds
         ON sd.student_id = sds.id
+    JOIN raw.general_information_sheet gis
+        ON sds.email = gis."Email"
+                                          
 ),
 
 student_registration AS (
@@ -372,10 +373,10 @@ WITH student_quiz AS (
     FROM intermediate.student_quiz sd
     JOIN intermediate.resource gs
         ON sd.resource_id = gs.id
-    LEFT JOIN raw.general_information_sheet gis
-        ON sd.student_id = gis."Student_id"
-    LEFT JOIN intermediate.student_details sds
+    JOIN intermediate.student_details sds
         ON sd.student_id = sds.id
+    JOIN raw.general_information_sheet gis
+        ON sds.email = gis."Email"
 ),
 
 student_registration AS (
