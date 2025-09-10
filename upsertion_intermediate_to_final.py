@@ -88,9 +88,9 @@ def clean_general_information_sheet():
 # Prepare tables for upsert
 # -------------------------------
 clean_general_information_sheet()
-#prepare_table_for_upsert("trial_final.final_quiz", ["student_id", "resource_id"], "duplicate_final_quiz.csv")
-#prepare_table_for_upsert("trial_final.final_assignment", ["student_id", "resource_id", "submitted_at"], "duplicate_final_assignment.csv")
-#prepare_table_for_upsert("trial_final.trial_daily_weekly_student_attendance",["student_id", "session_id"],"duplicate_daily_weekly_student_attendance.csv")
+#prepare_table_for_upsert("final.final_quiz", ["student_id", "resource_id"], "duplicate_final_quiz.csv")
+#prepare_table_for_upsert("final.final_assignment", ["student_id", "resource_id", "submitted_at"], "duplicate_final_assignment.csv")
+#prepare_table_for_upsert("final.daily_weekly_attendance",["student_id", "session_id"],"duplicate_daily_weekly_student_attendance.csv")
 
 # -------------------------------
 # Quiz upsert query
@@ -161,7 +161,7 @@ non_aggregated AS (
         university_name
     FROM mapped_subjects
 )
-INSERT INTO trial_final.final_quiz (
+INSERT INTO final.final_quiz (
     id,
     resource_id,
     student_id,
@@ -306,7 +306,7 @@ non_aggregated AS (
         university_name
     FROM mapped_subjects
 )
-INSERT INTO trial_final.final_assignment (
+INSERT INTO final.final_assignment (
     student_id,
     "Incubator_Batch",
     resource_id,
@@ -469,7 +469,7 @@ non_aggregated AS (
     FROM mapped_subjects
 )
 
-INSERT INTO trial_final.trial_daily_weekly_student_attendance (
+INSERT INTO final.daily_weekly_attendance (
     weekday_name,
     student_id,
     session_id,
@@ -558,38 +558,38 @@ if __name__ == "__main__":
 
     with engine.begin() as conn:
         if choice == "1":
-            prepare_table_for_upsert("trial_final.final_quiz", ["student_id", "resource_id"], "duplicate_final_quiz.csv")
+            prepare_table_for_upsert("final.final_quiz", ["student_id", "resource_id"], "duplicate_final_quiz.csv")
             quiz_result = conn.execute(quiz_upsert_query)
-            print("* Data upserted to 'trial_final.final_quiz'.")
+            print("* Data upserted to 'final.final_quiz'.")
             print(f"   - Rows inserted/updated: {quiz_result.rowcount}")
 
         elif choice == "2":
-            prepare_table_for_upsert("trial_final.final_assignment", ["student_id", "resource_id", "submitted_at"], "duplicate_final_assignment.csv")
+            prepare_table_for_upsert("final.final_assignment", ["student_id", "resource_id", "submitted_at"], "duplicate_final_assignment.csv")
             assign_result = conn.execute(assignment_upsert_query)
-            print("* Data upserted to 'trial_final.final_assignment'.")
+            print("* Data upserted to 'final.final_assignment'.")
             print(f"   - Rows inserted/updated: {assign_result.rowcount}")
 
         elif choice == "3":
-            prepare_table_for_upsert("trial_final.trial_daily_weekly_student_attendance",["student_id", "session_id"],"duplicate_daily_weekly_student_attendance.csv")
+            prepare_table_for_upsert("final.daily_weekly_attendance",["student_id", "session_id"],"duplicate_daily_weekly_student_attendance.csv")
             attendance_result = conn.execute(attendance_upsert_query)
-            print("* Data upserted to 'trial_final.trial_daily_weekly_student_attendance'.")
+            print("* Data upserted to 'final.daily_weekly_attendance'.")
             print(f"   - Rows inserted/updated: {attendance_result.rowcount}")
 
         elif choice == "4":
-            prepare_table_for_upsert("trial_final.final_quiz", ["student_id", "resource_id"], "duplicate_final_quiz.csv")
-            prepare_table_for_upsert("trial_final.final_assignment", ["student_id", "resource_id", "submitted_at"], "duplicate_final_assignment.csv")
-            prepare_table_for_upsert("trial_final.trial_daily_weekly_student_attendance",["student_id", "session_id"],"duplicate_daily_weekly_student_attendance.csv")
+            prepare_table_for_upsert("final.final_quiz", ["student_id", "resource_id"], "duplicate_final_quiz.csv")
+            prepare_table_for_upsert("final.final_assignment", ["student_id", "resource_id", "submitted_at"], "duplicate_final_assignment.csv")
+            prepare_table_for_upsert("final.daily_weekly_attendance",["student_id", "session_id"],"duplicate_daily_weekly_student_attendance.csv")
 
             quiz_result = conn.execute(quiz_upsert_query)
-            print("* Data upserted to 'trial_final.final_quiz'.")
+            print("* Data upserted to 'final.final_quiz'.")
             print(f"   - Rows inserted/updated: {quiz_result.rowcount}")
 
             assign_result = conn.execute(assignment_upsert_query)
-            print("* Data upserted to 'trial_final.final_assignment'.")
+            print("* Data upserted to 'final.final_assignment'.")
             print(f"   - Rows inserted/updated: {assign_result.rowcount}")
 
             attendance_result = conn.execute(attendance_upsert_query)
-            print("* Data upserted to 'trial_final.trial_daily_weekly_student_attendance'.")
+            print("* Data upserted to 'final.daily_weekly_attendance'.")
             print(f"   - Rows inserted/updated: {attendance_result.rowcount}")
 
 
@@ -597,15 +597,15 @@ if __name__ == "__main__":
     with engine.begin() as conn:
         # Quiz upsert
         quiz_result = conn.execute(quiz_upsert_query)
-        print("* Data upserted to 'trial_final.final_quiz'.")
+        print("* Data upserted to 'final.final_quiz'.")
         print(f"   - Rows inserted/updated: {quiz_result.rowcount}")
 
         # Assignment upsert
         assign_result = conn.execute(assignment_upsert_query)
-        print("* Data upserted to 'trial_final.final_assignment'.")
+        print("* Data upserted to 'final.final_assignment'.")
         print(f"   - Rows inserted/updated: {assign_result.rowcount}")
 
         # Attendance upsert
         attendance_result = conn.execute(attendance_upsert_query)
-        print("* Data upserted to 'trial_final.trial_daily_weekly_student_attendance'.")
+        print("* Data upserted to 'final.daily_weekly_attendance'.")
         print(f"   - Rows inserted/updated: {attendance_result.rowcount}")'''
