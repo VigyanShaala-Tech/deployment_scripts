@@ -402,7 +402,7 @@ live_sessions AS (
 student_attendance AS (
     SELECT 
         sd.student_id,
-        gs."Incubator_Batch" AS incubator_batch,
+        gis."Incubator_Batch" AS incubator_batch,
         sdet.location_id,
         ls.id AS session_id,               
         ls.session_name AS title,
