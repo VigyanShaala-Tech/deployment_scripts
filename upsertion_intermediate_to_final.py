@@ -413,10 +413,10 @@ student_attendance AS (
     FROM intermediate.student_session sd
     JOIN live_sessions ls
         ON sd.session_id = ls.id
-    JOIN raw.general_information_sheet gs
-        ON sd.student_id = gs."Student_id"
     JOIN intermediate.student_details sdet
         ON sd.student_id = sdet.id
+    JOIN raw.general_information_sheet gis
+        ON sdet.email = gis."Email"
 ),
 
 student_registration AS (
