@@ -56,7 +56,7 @@ referenced_output_path = "skipped_referenced_duplicates.xlsx"
 df_referenced_duplicates.to_excel(referenced_output_path, index=False)
 
 # Final messages
-print(f"✅ Deleted {len(df_unreferenced_duplicates)} unreferenced duplicate rows.")
-print(f"📝 Deleted rows saved to: {output_excel_path}")
-print(f"🔒 Skipped {len(df_referenced_duplicates)} referenced duplicate rows (not deleted).")
-print(f"📁 Skipped rows saved to: {referenced_output_path}")
+print(f"Deleted {len(df_unreferenced_duplicates)} unreferenced duplicate rows.")
+print(f"Deleted rows saved to: {output_excel_path}")
+print(f"Skipped {len(df_referenced_duplicates)} referenced duplicate rows (not deleted).")
+print(f"Skipped rows saved to: {referenced_output_path}")
