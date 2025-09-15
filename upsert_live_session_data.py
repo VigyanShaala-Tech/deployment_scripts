@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 import os
 
 CSV_FILE = r"C:\Users\vigya\OneDrive - VigyanShaala\02 Products  Initiatives\01 SheForSTEM\05 Kalpana M&E\00 DBMS 1.0\Kalpana\Kalpana\11 Live_Session_Data\Live_session_data.csv"   # your CSV file path
-TABLE_NAME = "intermediate.live_session"  # target table
+TABLE_NAME = "intermediate.live_session"  
 load_dotenv("config.env")
 
 DB_CONFIG = {
@@ -16,7 +16,7 @@ DB_CONFIG = {
     "port": int(os.getenv("DB_PORT", 5432))
 }
 
-# Function to convert Batch -> cohort_code
+# Function to convert Batch to cohort_code
 def convert_batch(batch_value: str) -> str:
     if not batch_value:
         return None
@@ -30,11 +30,11 @@ def convert_batch(batch_value: str) -> str:
         code_prefix = "ACC"
     else:
         code_prefix = program[:3].upper()
-    # Pad with zeros (7.0 -> 007, 8.0 -> 008)
+    # Convert (7.0 to 007, 8.0 to 008)
     code_number = str(number).replace(".0", "").zfill(3)
     return f"{code_prefix}{code_number}"
 
-# Function to convert date dd-mon-yy -> yyyy-mm-dd
+# Function to convert date dd-mon-yy to yyyy-mm-dd
 def convert_date(date_value: str) -> str:
     try:
         return datetime.strptime(date_value, "%d-%b-%y").strftime("%Y-%m-%d")
@@ -52,7 +52,7 @@ df["code"] = df["Session Code"]
 df["duration_in_sec"] = 3600
 df["conducted_on"] = df["Date"].apply(convert_date)
 
-# Keep only required columns
+
 final_df = df[["cohort_code", "session_name", "type", "code", "duration_in_sec", "conducted_on"]]
 
 # Connect to DB
@@ -69,7 +69,7 @@ WHERE a.ctid < b.ctid
 """
 
 cur.execute(cleanup_query)
-# Ensure composite unique constraint exists (ignore error if already exists)
+# Add unique constraint 
 alter_query = f"""
 DO $$
 BEGIN
@@ -105,4 +105,4 @@ conn.commit()
 cur.close()
 conn.close()
 
-print("✅ Data successfully upserted into database using (cohort_code, code, conducted_on).")
+print("Data successfully upserted into database using (cohort_code, code, conducted_on).")
