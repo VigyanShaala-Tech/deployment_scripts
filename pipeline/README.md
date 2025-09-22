@@ -1,6 +1,6 @@
 # pipeline scripts
 
-This repository contains Python scripts for the **end-to-end data processing pipeline** 
+This folder contains Python scripts for the **end-to-end data processing pipeline** 
 
 The pipeline scripts bring all data into one place and are categorized into:
 
