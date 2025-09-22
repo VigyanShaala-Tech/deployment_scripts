@@ -1,7 +1,5 @@
 # deployment_scripts
 
-# Data Pipeline Deployment Scripts
-
 This repository contains Python scripts for the **end-to-end data processing pipeline** that transforms old, unstructured data from multiple sources — including **Google Sheets, Graphy LMS, UI inputs, CSV downloads from the app, and attendance form data** — into structured database tables.
 
 The pipeline scripts bring all data into one place and are categorized into:
@@ -17,7 +15,7 @@ These scripts handle **continuous upserts** to keep live monitoring data updated
 
 1. **[monitoring\_data\_raw\_schema\_tables\_update\_script.py](./monitoring_data_raw_schema_tables_update_script.py)**
 
-   * Pulls data from the folder.
+   * Imports the latest monitoring data from the folder containing CSV files populated by the pipeline.
    * Updates only new data (avoiding conflicts with unique column fields).
    * Inserts into monitoring data tables within the **raw schema**.
 
@@ -30,6 +28,13 @@ These scripts handle **continuous upserts** to keep live monitoring data updated
 
    * Upserts data from **intermediate tables** to the **final schema**.
    * Final schema tables are optimized for **visualization and live dashboard updates**.
+
+
+**Order of Execution:**
+
+1)**[monitoring\_data\_raw\_schema\_tables\_update\_script.py](./monitoring_data_raw_schema_tables_update_script.py)**
+2)**[raw\_schema\_to\_intermediate\_upsert\_script.py](./raw_schema_to_intermediate_upsert_script.py)**
+3)**[upsertion\_intermediate\_to\_final.py](./upsertion_intermediate_to_final.py)**
 
 ---
 
@@ -45,6 +50,7 @@ These scripts are used for **manual updates or one-time structural modifications
 
    * Updates the **incubator batch name** for students.
    * Matches data against the registered student list received from the operations team.
+
 
 ---
 
