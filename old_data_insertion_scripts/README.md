@@ -16,7 +16,7 @@ These scripts are used for inserting past data for old cohorts (Incubator 1 to I
 
 3. **[table\_creation.py](https://github.com/VigyanShaala-Tech/deployment_scripts/blob/main/old_data_insertion_scripts/table_creation.py)**
 
-    * Handles creating database tables in intermediate schema: **student_details**, **referral_college_professor**, **student_registration_details**, **student_education**, **program**, **cohort**, **resource**, **live_session**, **student_session**, **student_quiz**, **student_pre_recorded**, **mentor_details**, **student_assignment**,    with well-defined structures.
+    * Handles creating database tables: **student_details**, **referral_college_professor**, **student_registration_details**, **student_education**, **program**, **cohort**, **resource**, **live_session**, **student_session**, **student_quiz**, **student_pre_recorded**, **mentor_details**, **student_assignment**, in intermediate schema with well-defined structures.
     * Defines proper columns, data types, and constraints (e.g., primary/foreign keys).
     * Ensures tables exist before data insertion
     * Maintains data integrity by enforcing relationships and valid values.
