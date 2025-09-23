@@ -1,6 +1,6 @@
 # old_data_insertion_scripts
 
-These scripts are used for inserting past data into the database to ensure completeness before live monitoring begins. They are typically **non-repetitive** and run on-demand when older data from sources like CSV downloads, or exported files needs to be backfilled.
+These scripts are used for inserting past data for old cohorts (Incubator 1 to Incubator 6) into the database to ensure completeness before live monitoring begins. They are typically **non-repetitive** and run on-demand when older data from sources like CSV downloads, or exported files needs to be backfilled.
 
 1. **[data\_insertion\_script.py](https://github.com/VigyanShaala-Tech/deployment_scripts/blob/main/old_data_insertion_scripts/data_insertion_script.py)**
 
