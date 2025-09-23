@@ -21,8 +21,8 @@ These scripts are used for inserting past data into the database to ensure compl
     * Ensures tables exist before data insertion
     * Maintains data integrity by enforcing relationships and valid values.
 
---
-**Data Correction Script**
+---
+# Data Correction Script**
 
 4. **[update\_clean\_data.py](https://github.com/VigyanShaala-Tech/deployment_scripts/blob/main/old_data_insertion_scripts/update_clean_data.py)**
 
