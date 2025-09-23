@@ -39,48 +39,48 @@ DB_PORT='my_db_port'
 # Repository Structure:
 
 ├── bug_fixing_on_production/  
-│   └── README.md  
-│   └── Fix_district_state_empty_value.py  
-|   └── INC7_upcoming_incubators_monitoring_data_insertion.py  
-|   └── assign_missing_ids.py  
-|   └── clean_emails.py  
-|   └── delete_emails_from_sheet.py  
-|   └── delete_student_id.py  
-|   └── remove_dupe_student_details.py  
-|   └── sql_update_script.py  
-│  
+   └── README.md  
+   └── Fix_district_state_empty_value.py  
+   └── INC7_upcoming_incubators_monitoring_data_insertion.py  
+   └── assign_missing_ids.py  
+   └── clean_emails.py  
+   └── delete_emails_from_sheet.py  
+   └── delete_student_id.py  
+   └── remove_dupe_student_details.py  
+   └── sql_update_script.py  
+    
 ├── database_and_schema_manipulation_script/  
-│   └── README.md  
-│   └── Add_data_to_new_column.py  
-│   └── add_column.py  
-│   └── alter_table_and_create_enum.py  
-│   └── create_db_and_db_schema_script.py  
-│   └── create_enum.py  
-│   └── create_final_tables_with_schema.py  
-│   └── create_raw_intermediate_indexes.py  
-│  
+   └── README.md  
+   └── Add_data_to_new_column.py  
+   └── add_column.py  
+   └── alter_table_and_create_enum.py  
+   └── create_db_and_db_schema_script.py  
+   └── create_enum.py  
+   └── create_final_tables_with_schema.py  
+   └── create_raw_intermediate_indexes.py  
+    
 ├── insert_user_registration/  
-│   └── README.md  
-│   └── insert_new_data.py  
-│  
+   └── README.md  
+   └── insert_new_data.py  
+    
 ├── monitoring_data_pipeline/  
-│   └── README.md  
-│   └── post_cohort_repeatative_script  
-|      └── monitoring_data_raw_schema_tables_update_script.py  
-|      └── raw_schema_to_intermediate_upsert_script.py  
-|      └── upsertion_intermediate_to_final.py  
-│   └── pre_cohort_non_repeatative_script  
-|      └── Add_new_cohorts_names_for_upcoming_cohort.py  
-|      └── Update_incubator_name_based_on_email.py  
-│  
+   └── README.md  
+   └── post_cohort_repeatative_script  
+      └── monitoring_data_raw_schema_tables_update_script.py  
+      └── raw_schema_to_intermediate_upsert_script.py  
+      └── upsertion_intermediate_to_final.py  
+   └── pre_cohort_non_repeatative_script  
+      └── Add_new_cohorts_names_for_upcoming_cohort.py  
+      └── Update_incubator_name_based_on_email.py  
+    
 ├── old_data_insertion_scripts/  
-│   └── README.md  
-│   └── data_insertion_script.py  
-│   └── table_creation.py  
-│   └── load_csvs_to_db.py  
-│   └── update_clean_data.py  
-│   └── update_course_name_INC_7_script.py  
-│   └── update_script_location_id.py  
-|  
+   └── README.md  
+   └── data_insertion_script.py  
+   └── table_creation.py  
+   └── load_csvs_to_db.py  
+   └── update_clean_data.py  
+   └── update_course_name_INC_7_script.py  
+   └── update_script_location_id.py  
+    
 ├── config.env  
 └── README.md   ← (this file)
