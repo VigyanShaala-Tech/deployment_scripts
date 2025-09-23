@@ -4,7 +4,7 @@ These scripts are used for inserting past data for old cohorts (Incubator 1 to I
 
 1. **[data\_insertion\_script.py](https://github.com/VigyanShaala-Tech/deployment_scripts/blob/main/old_data_insertion_scripts/data_insertion_script.py)**
 
-   * Handles insertion of past records containing data for Incubators 1 to 6 into the database.
+   * Handles insertion of past records containing data for Incubators 1 to 6 into the database tables: **program**, **cohort**, **live_session**, **student_session**, **resource**, **student_pre_recorded**, **student_quiz**, **student_assignment** in intermediate schema.
    * Ensures consistency with schema constraints while loading historical datasets.
 
 2. **[load\_csvs\_to\_db.py](https://github.com/VigyanShaala-Tech/deployment_scripts/blob/main/old_data_insertion_scripts/load_csvs_to_db.py)**
