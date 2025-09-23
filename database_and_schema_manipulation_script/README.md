@@ -15,8 +15,7 @@ This database and schema management python scripts can be divided into two main 
     * Then connects to the new database to create a schema if it doesn’t exist, providing success or error messages.
     
     **Usage**:
-    * Run the script from the terminal with the database and schema names as arguments:  
-        **python create_db_and_schema.py <database_name> <schema_name>**
+    * Run the script from the terminal with the database and schema names as arguments: **python create_db_and_schema.py <database_name> <schema_name>**
 
 2. **[add\_column.py](https://github.com/VigyanShaala-Tech/deployment_scripts/blob/main/database_and_schema_manipulation_script/add_column.py)**
 
@@ -26,7 +25,7 @@ This database and schema management python scripts can be divided into two main 
     **Usage**
     * Run command: **python add_column.py**
 
-    Then follow the prompts to enter:
+    Then follow the prompts to enter:  
     **Full table name** (e.g., raw.student_details)  
     **New column name**  
     **Data type** (e.g., VARCHAR(255), INTEGER)
