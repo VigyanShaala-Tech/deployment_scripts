@@ -15,7 +15,7 @@ This database and schema management python scripts can be divided into two main 
     * Then connects to the new database to create a schema if it doesn’t exist, providing success or error messages.
     
     **Usage**:
-    * Run the script from the terminal with the database and schema names as arguments:
+    * Run the script from the terminal with the database and schema names as arguments:  
         **python create_db_and_schema.py <database_name> <schema_name>**
 
 2. **[add\_column.py](https://github.com/VigyanShaala-Tech/deployment_scripts/blob/main/database_and_schema_manipulation_script/add_column.py)**
@@ -27,8 +27,8 @@ This database and schema management python scripts can be divided into two main 
     * Run command: **python add_column.py**
 
     Then follow the prompts to enter:
-    **Full table name** (e.g., raw.student_details)
-    **New column name**
+    **Full table name** (e.g., raw.student_details)  
+    **New column name**  
     **Data type** (e.g., VARCHAR(255), INTEGER)
 
 3. **[alter\_table\_and\_create\_enum.py](https://github.com/VigyanShaala-Tech/deployment_scripts/blob/main/database_and_schema_manipulation_script/alter_table_and_create_enum.py)**
@@ -78,8 +78,8 @@ This database and schema management python scripts can be divided into two main 
     **Usage**
     * Run command: **python Add_data_to_new_column.py**
 
-    Then follow the prompts to enter:
-    **Full table name** (e.g., raw.student_details)
-    **New column name**
-    **Column type** (e.g., VARCHAR(100))
+    Then follow the prompts to enter:  
+    **Full table name** (e.g., raw.student_details)  
+    **New column name**  
+    **Column type** (e.g., VARCHAR(100))  
     **ID column name** (e.g., id)
