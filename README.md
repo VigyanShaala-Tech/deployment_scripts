@@ -48,7 +48,7 @@ DB_PORT='my_db_port'
 |   └── delete_student_id.py  
 |   └── remove_dupe_student_details.py  
 |   └── sql_update_script.py  
-│
+│  
 ├── database_and_schema_manipulation_script/  
 │   └── README.md  
 │   └── Add_data_to_new_column.py  
@@ -58,11 +58,11 @@ DB_PORT='my_db_port'
 │   └── create_enum.py  
 │   └── create_final_tables_with_schema.py  
 │   └── create_raw_intermediate_indexes.py  
-│
+│  
 ├── insert_user_registration/  
 │   └── README.md  
 │   └── insert_new_data.py  
-│
+│  
 ├── monitoring_data_pipeline/  
 │   └── README.md  
 │   └── post_cohort_repeatative_script  
@@ -72,7 +72,7 @@ DB_PORT='my_db_port'
 │   └── pre_cohort_non_repeatative_script  
 |      └── Add_new_cohorts_names_for_upcoming_cohort.py  
 |      └── Update_incubator_name_based_on_email.py  
-│
+│  
 ├── old_data_insertion_scripts/  
 │   └── README.md  
 │   └── data_insertion_script.py  
@@ -81,6 +81,6 @@ DB_PORT='my_db_port'
 │   └── update_clean_data.py  
 │   └── update_course_name_INC_7_script.py  
 │   └── update_script_location_id.py  
-|
+|  
 ├── config.env  
 └── README.md   ← (this file)
