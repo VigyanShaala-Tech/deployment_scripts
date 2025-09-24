@@ -178,28 +178,25 @@ student_quiz_query = text("""
 # Execute queries
 
 if __name__ == "__main__":
-    print("\nChoose an option:")
-    print("1. Insert into student_assignment")
-    print("2. Insert into student_session")
-    print("3. Insert into student_quiz")
-    
-    choice = input("Enter your choice (1/2/3): ").strip()
 
     with engine.begin() as conn:
-        if choice == "1":
+        try:
             assignment_result = conn.execute(student_assignment_query)
             print("* Data appended to 'student_assignment' table.")
-            print(f"   - Rows inserted/updated: {assignment_result.rowcount}")
-        
-        elif choice == "2":
+            print(f"   - Rows inserted/updated: {assignment_result.rowcount}")        
+        except Exception as e:
+            print(f"! Failed to insert into 'student_assignment': {e}")
+
+        try:    
             session_result = conn.execute(student_session_query)
             print("* Data appended to 'student_session' table.")
-            print(f"   - Rows inserted/updated: {session_result.rowcount}")
-        
-        elif choice == "3":
+            print(f"   - Rows inserted/updated: {session_result.rowcount}")        
+        except Exception as e:
+            print(f"! Failed to insert into 'student_session': {e}")
+
+        try:
             quiz_result = conn.execute(student_quiz_query)
             print("* Data appended to 'student_quiz' table.")
             print(f"   - Rows inserted/updated: {quiz_result.rowcount}")
-        
-        else:
-            print("# Invalid choice. Please enter 1, 2, or 3.")
+        except Exception as e:
+            print(f"! Failed to insert into 'student_quiz': {e}")
