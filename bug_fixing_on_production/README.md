@@ -3,8 +3,8 @@
 This folder contains a collection of Python scripts designed to **identify, debug, and resolve data-related issues directly in the production environment**. These scripts are primarily focused on **cleaning, updating, and correcting inconsistencies in the production database or data pipeline outputs** to ensure data integrity.
 
 This folder contains scripts used for production-level data maintenance — primarily focused on two major tasks:  
-**Data Cleaning & Standardization** – Fixing inconsistencies, removing duplicates, and correcting invalid entries.  
-**Data Correction** – Repairing database records, filling missing values, and updating data directly in production.
+1. **Data Cleaning & Standardization** – Fixing inconsistencies, removing duplicates, and correcting invalid entries.  
+2. **Data Correction** – Repairing database records, filling missing values, and updating data directly in production.
 
 ---
 
@@ -44,11 +44,11 @@ This folder contains scripts used for production-level data maintenance — prim
     * Run command: **python sql_update_script.py**
 
     Then follow the prompts to enter:  
-    **Full table name** (e.g., raw.student_details)  
-    **Column to update**
-    **New Value**  
-    **Where column** 
-    **Where value** 
+        **Full table name** (e.g., raw.student_details)  
+        **Column to update**
+        **New Value**  
+        **Where column** 
+        **Where value** 
 
 ---
 
