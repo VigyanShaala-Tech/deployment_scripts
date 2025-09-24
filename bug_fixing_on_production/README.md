@@ -43,12 +43,12 @@ This folder contains scripts used for production-level data maintenance — prim
     **Usage**
     * Run command: **python sql_update_script.py**
 
-    Then follow the prompts to enter:  
-        **Full table name** (e.g., raw.student_details)  
-        **Column to update**
-        **New Value**  
-        **Where column** 
-        **Where value** 
+    Then follow the prompts to enter:    
+        **Full table name** (e.g., raw.student_details)   
+        **Column to update**  
+        **New Value**    
+        **Where column**   
+        **Where value**   
 
 ---
 
