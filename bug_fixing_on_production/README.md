@@ -44,6 +44,7 @@ This folder contains scripts used for production-level data maintenance — prim
     * Run command: **python sql_update_script.py**
 
     Then follow the prompts to enter:    
+
         **Full table name** (e.g., raw.student_details)   
         **Column to update**  
         **New Value**    
@@ -58,6 +59,7 @@ This folder contains scripts used for production-level data maintenance — prim
 
     * Standardizes email IDs by converting them to lowercase.
     * Runs on both raw.general_information_sheet and intermediate.student_details.
+      
     **Usage**
     * Run command: **python clean_emails.py**
 
@@ -65,6 +67,7 @@ This folder contains scripts used for production-level data maintenance — prim
 
     * Removes duplicate email IDs from raw.general_information_sheet.
     * Ensures email uniqueness before assigning student_id.
+      
     **Usage**
     * Run command: **python delete_emails_from_sheet.py**
 
