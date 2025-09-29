@@ -26,6 +26,9 @@ student_assignment_query = text("""
         SELECT "Incubator_Course_Name" AS cohort_name, "Student_id" AS student_id, "Email" as email
         FROM raw.general_information_sheet
     ),
+    student_details_data AS (
+        SELECT id,email FROM intermediate.student_details
+    ),
     assignment_data AS (
         SELECT
             "assignment_name" AS name,
@@ -44,7 +47,7 @@ student_assignment_query = text("""
     ),
     student_assignment_data AS (
         SELECT
-            g.student_id::INT AS student_id,
+            sd.id::INT AS student_id,
             r.resource_id::INT AS resource_id,
             NULL::INT AS mentor_id,
             c.cohort_code AS cohort_code,
@@ -59,7 +62,8 @@ student_assignment_query = text("""
             a.submitted_at::TIMESTAMP AS submitted_at,
             a.assignment_file AS assignment_file
         FROM assignment_data a
-        INNER JOIN raw_general_info_data g ON a.email = g.email
+        INNER JOIN student_details_data sd ON a.email = sd.email                    
+        INNER JOIN raw_general_info_data g ON sd.email = g.email
         INNER JOIN cohort_data c ON g.cohort_name = c.cohort_name 
         INNER JOIN resource_data r ON a.name = r.title
     )
@@ -91,6 +95,9 @@ student_session_query = text("""
         SELECT "Incubator_Course_Name" AS cohort_name, "Student_id" AS student_id, "Email" AS email
         FROM raw.general_information_sheet
     ),
+    student_details_data AS (
+        SELECT id,email FROM intermediate.student_details
+    ),
     session_data AS (
         SELECT id AS session_id, session_name, cohort_code, code
         FROM intermediate.live_session
@@ -108,12 +115,13 @@ student_session_query = text("""
     ),
     student_live_session_cte AS (
         SELECT
-            g.student_id::INT AS student_id,
+            sd.id::INT AS student_id,
             s.session_id::INT AS session_id,
             ssi.duration_in_sec::INT AS duration_in_sec,
             ssi.watched_on::DATE AS watched_on
         FROM raw_student_session_info ssi
-        INNER JOIN raw_general_info_data g ON ssi.email = g.email
+        INNER JOIN student_details_data sd ON ssi.email = sd.email                    
+        INNER JOIN raw_general_info_data g ON sd.email = g.email
         INNER JOIN cohort_data c ON g.cohort_name = c.cohort_name
         INNER JOIN session_data s ON ssi.session_code = s.code AND c.cohort_code = s.cohort_code
     )
@@ -142,6 +150,9 @@ student_quiz_query = text("""
     cohort_data AS (
         SELECT cohort_code, cohort_name FROM intermediate.cohort
     ),
+    student_details_data AS (
+        SELECT id,email FROM intermediate.student_details
+    ),
     resource_data AS (
         SELECT id AS resource_id, title
         FROM intermediate.resource
@@ -149,7 +160,7 @@ student_quiz_query = text("""
     ),
     student_quiz_data AS (
         SELECT
-            g.student_id::INT AS student_id,
+            sd.id::INT AS student_id,
             r.resource_id::INT AS resource_id,
             c.cohort_code AS cohort_code,
             100::INT AS max_marks,
@@ -157,7 +168,8 @@ student_quiz_query = text("""
             NULL::INT AS reattempts,
             NULL::TIMESTAMP AS attempted_at
         FROM quiz_data q
-        INNER JOIN raw_general_info_data g ON q.email = g.email
+        INNER JOIN student_details_data sd ON q.email = sd.email                    
+        INNER JOIN raw_general_info_data g ON sd.email = g.email
         INNER JOIN cohort_data c ON g.cohort_name = c.cohort_name
         INNER JOIN resource_data r ON q.quiz_name = r.title
     )
@@ -178,28 +190,25 @@ student_quiz_query = text("""
 # Execute queries
 
 if __name__ == "__main__":
-    print("\nChoose an option:")
-    print("1. Insert into student_assignment")
-    print("2. Insert into student_session")
-    print("3. Insert into student_quiz")
-    
-    choice = input("Enter your choice (1/2/3): ").strip()
 
     with engine.begin() as conn:
-        if choice == "1":
+        try:
             assignment_result = conn.execute(student_assignment_query)
-            print("* Data appended to 'student_assignment' table.")
-            print(f"   - Rows inserted/updated: {assignment_result.rowcount}")
-        
-        elif choice == "2":
+            print("* Data returned to 'student_assignment' table.")
+            print(f"   - Rows inserted/updated: {assignment_result.rowcount}")        
+        except Exception as e:
+            print(f"! Failed to insert into 'student_assignment': {e}")
+
+        try:    
             session_result = conn.execute(student_session_query)
-            print("* Data appended to 'student_session' table.")
-            print(f"   - Rows inserted/updated: {session_result.rowcount}")
-        
-        elif choice == "3":
+            print("* Data returned to 'student_session' table.")
+            print(f"   - Rows inserted/updated: {session_result.rowcount}")        
+        except Exception as e:
+            print(f"! Failed to insert into 'student_session': {e}")
+
+        try:
             quiz_result = conn.execute(student_quiz_query)
-            print("* Data appended to 'student_quiz' table.")
+            print("* Data returned to 'student_quiz' table.")
             print(f"   - Rows inserted/updated: {quiz_result.rowcount}")
-        
-        else:
-            print("# Invalid choice. Please enter 1, 2, or 3.")
+        except Exception as e:
+            print(f"! Failed to insert into 'student_quiz': {e}")

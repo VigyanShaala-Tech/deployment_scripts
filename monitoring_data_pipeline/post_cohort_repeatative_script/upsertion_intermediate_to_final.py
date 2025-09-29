@@ -46,6 +46,7 @@ def prepare_table_for_upsert(table_name, unique_columns, csv_filename):
         conn.execute(text(delete_query))
         print(f"* Duplicates cleaned from {table_name}.")
 
+'''
     # Step 3: Add unique constraint
     constraint_name = f"uq_{table_name.replace('.', '_')}"
     add_constraint_query = f"""
@@ -58,7 +59,7 @@ def prepare_table_for_upsert(table_name, unique_columns, csv_filename):
             print(f"* Unique constraint added on {table_name} ({', '.join(unique_columns)}).")
         except Exception as e:
             print(f"* Unique constraint might already exist for {table_name}: {e}")
-
+'''
 
 def clean_general_information_sheet():
     dup_query = """
@@ -677,55 +678,40 @@ DO UPDATE SET
 # -------------------------------
 
 if __name__ == "__main__":
-    print("\nSelect an action:")
-    print("0. Student Demography upsert")
-    print("1. Quiz upsert")
-    print("2. Assignment upsert")
-    print("3. Attendance upsert")
-    print("4. Run ALL (cleanup + upserts)")
-    choice = input("Enter your choice (1-4): ").strip()
 
     with engine.begin() as conn:
-        if choice == "1":
+        try:
             prepare_table_for_upsert("final.final_quiz", ["student_id", "resource_id"], "duplicate_final_quiz.csv")
             quiz_result = conn.execute(quiz_upsert_query)
             print("* Data upserted to 'final.final_quiz'.")
             print(f"   - Rows inserted/updated: {quiz_result.rowcount}")
+        except Exception as e:
+            print(f"! Failed to upsert into 'final.final_quiz': {e}")
 
-        elif choice == "0":
+        try:
             prepare_table_for_upsert("final.student_demography", ["email"], "duplicate_final_student_demography.csv")
             demography_result = conn.execute(student_demography_upsert_query)
             print("* Data upserted to 'final.student_demography'.")
             print(f"   - Rows inserted/updated: {demography_result.rowcount}")
+        except Exception as e:
+            print(f"! Failed to upsert into 'final.student_demography': {e}")
 
-        elif choice == "2":
+        try:
             prepare_table_for_upsert("final.final_assignment", ["student_id", "resource_id", "submitted_at"], "duplicate_final_assignment.csv")
             assign_result = conn.execute(assignment_upsert_query)
             print("* Data upserted to 'final.final_assignment'.")
             print(f"   - Rows inserted/updated: {assign_result.rowcount}")
+        except Exception as e:
+            print(f"! Failed to upsert into 'final.final_assignment': {e}")
 
-        elif choice == "3":
+        try:
             prepare_table_for_upsert("final.daily_weekly_attendance",["student_id", "session_id"],"duplicate_daily_weekly_student_attendance.csv")
             attendance_result = conn.execute(attendance_upsert_query)
             print("* Data upserted to 'final.daily_weekly_attendance'.")
             print(f"   - Rows inserted/updated: {attendance_result.rowcount}")
+        except Exception as e:
+            print(f"! Failed to upsert into 'final.daily_weekly_attendance': {e}")
 
-        elif choice == "4":
-            prepare_table_for_upsert("final.final_quiz", ["student_id", "resource_id"], "duplicate_final_quiz.csv")
-            prepare_table_for_upsert("final.final_assignment", ["student_id", "resource_id", "submitted_at"], "duplicate_final_assignment.csv")
-            prepare_table_for_upsert("final.daily_weekly_attendance",["student_id", "session_id"],"duplicate_daily_weekly_student_attendance.csv")
-
-            quiz_result = conn.execute(quiz_upsert_query)
-            print("* Data upserted to 'final.final_quiz'.")
-            print(f"   - Rows inserted/updated: {quiz_result.rowcount}")
-
-            assign_result = conn.execute(assignment_upsert_query)
-            print("* Data upserted to 'final.final_assignment'.")
-            print(f"   - Rows inserted/updated: {assign_result.rowcount}")
-
-            attendance_result = conn.execute(attendance_upsert_query)
-            print("* Data upserted to 'final.daily_weekly_attendance'.")
-            print(f"   - Rows inserted/updated: {attendance_result.rowcount}")
 
 
 '''if __name__ == "__main__":
