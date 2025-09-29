@@ -71,6 +71,9 @@ def import_csv_to_db(folder_path, engine, filter_text=""):
                     except Exception as e:
                         print(f"Warning: Could not add constraint. {e}")
 
+                # Inform user that the upsert process has started
+                print("Upserting data into the quiz table. Please wait...")
+
                 for _, row in df.iterrows():
                     stmt = text(f"""
                         INSERT INTO {schema}.{table_name} (user_id, data_fields, value)
@@ -79,7 +82,7 @@ def import_csv_to_db(folder_path, engine, filter_text=""):
                         DO UPDATE SET value = EXCLUDED.value
                     """)
                     conn.execute(stmt, {"user_id": row['user_id'], "data_fields": row['data_fields'], "value": row['value']})
-                print("Data upserted successfully")
+                print("** Data upserted successfully in quiz table")
 
             elif choice == "2":
                 df = pd.read_csv(file_path, encoding="ISO-8859-1", sep=None, engine='python')
@@ -129,6 +132,9 @@ def import_csv_to_db(folder_path, engine, filter_text=""):
                         except Exception as e:
                             print(f"** Warning: Could not add 'watched_on' column. It might already exist or failed: {e}")
 
+                    # Inform user that the upsert process has started
+                    print("Upserting data into the session table. Please wait...")
+
                     # Perform upsert
                     for _, row in df.iterrows():
                         watched_on_value = row['watched_on'] if pd.notna(row['watched_on']) else None
@@ -152,7 +158,7 @@ def import_csv_to_db(folder_path, engine, filter_text=""):
                             "watched_on": watched_on_value
                         })
 
-                    print("Data upserted successfully")
+                    print("** Data upserted successfully in session table")
 
 
             elif choice == "3":
@@ -177,6 +183,9 @@ def import_csv_to_db(folder_path, engine, filter_text=""):
                 update_cols = [col for col in all_columns if col not in ["assignment_id", "submitted_at", "Email"]]
                 update_stmt = ", ".join(f'"{col}" = EXCLUDED."{col}"' for col in update_cols)
 
+                 # Inform user that the upsert process has started
+                print("Upserting data into the assignment table. Please wait...")
+
                 for _, row in df.iterrows():
                     stmt = text(f"""
                         INSERT INTO {schema}."{table_name}" ({insert_cols})
@@ -185,7 +194,7 @@ def import_csv_to_db(folder_path, engine, filter_text=""):
                         DO UPDATE SET {update_stmt}
                     """)
                     conn.execute(stmt, {col: row[col] for col in all_columns})
-                print("Data upserted successfully")
+                print("** Data upserted successfully in assignment table")
 
 
 if __name__ == "__main__":
@@ -195,8 +204,8 @@ if __name__ == "__main__":
 
     folder_path = sys.argv[1]
 
-    filter_text = input("Enter filename prefix or suffix to filter (leave blank to process all): ").strip()
-    
+    filter_text= ""
+
     config = load_env("config.env")
     engine = loading_engine(config)
     import_csv_to_db(folder_path, engine, filter_text)
