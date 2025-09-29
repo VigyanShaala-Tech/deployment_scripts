@@ -194,21 +194,21 @@ if __name__ == "__main__":
     with engine.begin() as conn:
         try:
             assignment_result = conn.execute(student_assignment_query)
-            print("* Data appended to 'student_assignment' table.")
+            print("* Data returned to 'student_assignment' table.")
             print(f"   - Rows inserted/updated: {assignment_result.rowcount}")        
         except Exception as e:
             print(f"! Failed to insert into 'student_assignment': {e}")
 
         try:    
             session_result = conn.execute(student_session_query)
-            print("* Data appended to 'student_session' table.")
+            print("* Data returned to 'student_session' table.")
             print(f"   - Rows inserted/updated: {session_result.rowcount}")        
         except Exception as e:
             print(f"! Failed to insert into 'student_session': {e}")
 
         try:
             quiz_result = conn.execute(student_quiz_query)
-            print("* Data appended to 'student_quiz' table.")
+            print("* Data returned to 'student_quiz' table.")
             print(f"   - Rows inserted/updated: {quiz_result.rowcount}")
         except Exception as e:
             print(f"! Failed to insert into 'student_quiz': {e}")
