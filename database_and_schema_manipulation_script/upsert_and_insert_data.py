@@ -19,15 +19,16 @@ connection_string = f"postgresql+psycopg2://{username}:{password}@{host}:{port}/
 engine = create_engine(connection_string)
 
 # Change CSV file address
-csv_file_path = r"C:\User\file_name.csv"  # change to your CSV file
-table_name = "intermediate.subject_mapping"
+csv_file_path = r"C:\Users\vigya\Downloads\subject_mapping_new(in).csv"  # change to your CSV file
+table_name = "intermediate.subject_mapping"   # change to the table name that needs to be updated
+pk_column = "id"   #  Replace 'id' with the primary key column name of your table
 
 # Read CSV
 df = pd.read_csv(csv_file_path)
 
 # Separate records with and without IDs
-update_df = df[df['id'].notnull()].copy()   #  Replace 'id' with the primary key column name of your table
-insert_df = df[df['id'].isnull()].copy()    #  Replace 'id' with the primary key column name of your table
+update_df = df[df[pk_column].notnull()].copy()   
+insert_df = df[df[pk_column].isnull()].copy()    
 
 
 # UPSERT for rows with IDs
@@ -37,12 +38,12 @@ if not update_df.empty:
 
     columns_str = ", ".join(columns)
     placeholders_str = ", ".join([f":{col}" for col in columns])
-    update_clause = ", ".join([f"{col} = EXCLUDED.{col}" for col in columns if col != "id"])  # Replace 'id' with the primary key column name of your table
+    update_clause = ", ".join([f"{col} = EXCLUDED.{col}" for col in columns if col != pk_column])  
 
     upsert_query = text(f"""
         INSERT INTO {table_name} ({columns_str})
         VALUES ({placeholders_str})
-        ON CONFLICT (id)                     --Replace 'id' with the primary key column name of your table
+        ON CONFLICT ({pk_column})                     
         DO UPDATE SET {update_clause}
     """)
 
@@ -53,7 +54,7 @@ if not update_df.empty:
 
 # INSERT for rows without IDs (let DB auto-generate ID) 
 if not insert_df.empty:
-    insert_df = insert_df.drop(columns=['id'])    #  Replace 'id' with the primary key column name of your table
+    insert_df = insert_df.drop(columns=[pk_column])    
     records = insert_df.to_dict(orient="records")
 
     if records:
