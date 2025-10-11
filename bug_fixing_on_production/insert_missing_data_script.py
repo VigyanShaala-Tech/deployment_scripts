@@ -95,7 +95,7 @@ try:
             (
                 sid,
                 row.get("Education_course_id") or None,
-                None,  # subject_id
+                row.get("Subject_id") or None,
                 None,  # interest_subject_id
                 row.get("College_id") or None,
                 row.get("University_id") or None,
