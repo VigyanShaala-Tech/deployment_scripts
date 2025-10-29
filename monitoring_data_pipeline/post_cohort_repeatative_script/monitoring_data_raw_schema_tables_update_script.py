@@ -1,23 +1,10 @@
 import os
 import sys
 import pandas as pd
-from sqlalchemy import create_engine, text
-from dotenv import load_dotenv
+from sqlalchemy import text, inspect
 from sqlalchemy import inspect
 
-# Change the crendentials in the configuration.env file
-def load_env(file_path):
-    load_dotenv(file_path)
-    return {
-        'HOST' : os.getenv("DB_HOST"),
-        'DB_NAME' : os.getenv("DB_NAME"),
-        'USER' : os.getenv("DB_USER"),
-        'PASSWORD': os.getenv("DB_PASSWORD"),
-        'PORT' : os.getenv("DB_PORT")
-        }
-
-def loading_engine(config):
-    return(create_engine(f"postgresql+psycopg2://{config['USER']}:{config['PASSWORD']}@{config['HOST']}:{config['PORT']}/{config['DB_NAME']}"))
+from deployment_scripts.connection import get_engine, get_session, metadata
 
 def import_csv_to_db(folder_path, engine, filter_text=""):
     files = os.listdir(folder_path)
@@ -206,6 +193,5 @@ if __name__ == "__main__":
 
     filter_text= ""
 
-    config = load_env("config.env")
-    engine = loading_engine(config)
+    engine = get_engine()
     import_csv_to_db(folder_path, engine, filter_text)

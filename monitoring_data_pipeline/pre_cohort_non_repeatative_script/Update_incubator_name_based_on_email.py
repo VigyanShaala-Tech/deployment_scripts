@@ -1,22 +1,10 @@
-from sqlalchemy import create_engine, update, Table, MetaData
-from sqlalchemy.orm import sessionmaker
-import pandas as pd
-from dotenv import load_dotenv
+import sys
 import os
+from sqlalchemy import update, Table
 import pandas as pd
 
-# Load environment variables
-load_dotenv(r"config.env")
+from deployment_scripts.connection import get_engine, get_session, metadata
 
-# Fetch DB credentials
-DB_USER = os.getenv("DB_USER")
-DB_PASSWORD = os.getenv("DB_PASSWORD")
-DB_HOST = os.getenv("DB_HOST", "localhost")
-DB_PORT = os.getenv("DB_PORT", "5432")
-DB_NAME = os.getenv("DB_NAME")
-
-# Database connection URL
-DATABASE_URL = f"postgresql+psycopg2://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
 # Load email list from CSV
 df = pd.read_csv(r"C:\Users\vigya\Downloads\Incubator_9_email_id_mappings.csv", encoding='ISO-8859-1')  
@@ -27,12 +15,10 @@ NEW_INCUBATOR_BATCH = input("Enter new Incubator Batch: ").strip()
 NEW_INCUBATOR_COURSE_NAME = input("Enter new Incubator Course Name: ").strip()
 
 # Set up DB connection
-engine = create_engine(DATABASE_URL)
-Session = sessionmaker(bind=engine)
-session = Session()
+engine = get_engine()
+session = get_session()
 
 # Reflect table
-metadata = MetaData()
 metadata.reflect(bind=engine, schema="raw")
 table = Table("general_information_sheet", metadata, autoload_with=engine, schema="raw")
 

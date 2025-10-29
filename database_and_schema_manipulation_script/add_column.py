@@ -1,16 +1,8 @@
 import os
-from sqlalchemy import create_engine, text
-from dotenv import load_dotenv
+import sys
+from sqlalchemy import text
 
-# Load config.env file
-load_dotenv("config.env")
-
-# Load DB credentials from environment
-username = os.getenv("DB_USER")
-password = os.getenv("DB_PASSWORD")
-host = os.getenv("DB_HOST")
-port = os.getenv("DB_PORT") 
-database_name = os.getenv("DB_NAME")
+from deployment_scripts.connection import get_engine, get_session, metadata
 
 # Get user input
 full_table_name = input("Enter full table name (e.g., schema_name.table_name): ").strip()
@@ -25,8 +17,7 @@ add_column_query = text(f"""
 """)
 
 # PostgreSQL connection
-connection_string = f"postgresql+psycopg2://{username}:{password}@{host}:{port}/{database_name}"
-engine = create_engine(connection_string)
+engine = get_engine()
 
 # Execute query
 with engine.connect() as conn:

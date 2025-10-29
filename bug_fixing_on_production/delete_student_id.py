@@ -1,21 +1,9 @@
 import os
 import pandas as pd
 from sqlalchemy import create_engine, text
-from dotenv import load_dotenv
+from deployment_scripts.connection import get_engine, get_session, metadata
 
-# Load environment variables
-load_dotenv("config.env")
-
-# Get DB credentials
-username = os.getenv("DB_USER")
-password = os.getenv("DB_PASSWORD")
-host = os.getenv("DB_HOST")
-port = os.getenv("DB_PORT")
-database_name = os.getenv("DB_NAME")
-
-# DB connection
-connection_string = f"postgresql+psycopg2://{username}:{password}@{host}:{port}/{database_name}"
-engine = create_engine(connection_string)
+engine = get_engine()
 
 # IDs to delete
 student_ids_to_delete = [1390, 9801, 9802, 9805, 9795, 9799, 9800, 9803, 9810, 10743, 11981]

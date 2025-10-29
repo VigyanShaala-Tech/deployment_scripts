@@ -3,20 +3,10 @@ from sqlalchemy import create_engine, Column, Integer, String, func, or_
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import update
-from dotenv import load_dotenv
 from sqlalchemy import case
 from sqlalchemy import or_, func, update, case
 
-# Load credentials from config.env
-load_dotenv("config.env")
-
-DB_USER = os.getenv("DB_USER")
-DB_PASSWORD = os.getenv("DB_PASSWORD")
-DB_HOST = os.getenv("DB_HOST")
-DB_PORT = os.getenv("DB_PORT", "5432")
-DB_NAME = os.getenv("DB_NAME")
-
-DATABASE_URL = f"postgresql+psycopg2://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+from deployment_scripts.connection import get_engine, get_session, metadata
 
 Base = declarative_base()
 
@@ -29,9 +19,8 @@ class GeneralInformationSheet(Base):
     District = Column(String)
 
 # Session setup
-engine = create_engine(DATABASE_URL)
-Session = sessionmaker(bind=engine)
-session = Session()
+engine = get_engine()
+session = get_session()
 
 # Step 1: Detect states with extra spaces
 state_rows = (

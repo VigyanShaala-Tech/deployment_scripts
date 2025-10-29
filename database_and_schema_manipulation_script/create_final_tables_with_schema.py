@@ -1,19 +1,9 @@
 import os
+import sys
 import textwrap
-from sqlalchemy import create_engine, text
-from dotenv import load_dotenv
+from sqlalchemy import text
 
-# Load .env file
-load_dotenv("config.env")
-
-DB_USER = os.getenv("DB_USER")
-DB_PASS = os.getenv("DB_PASSWORD")
-DB_HOST = os.getenv("DB_HOST", "localhost")
-DB_PORT = os.getenv("DB_PORT", "5432")
-DB_NAME = os.getenv("DB_NAME")
-
-if not all([DB_USER, DB_PASS, DB_HOST, DB_NAME]):
-    raise SystemExit("Missing DB credentials in config.env. Please set DB_USER, DB_PASSWORD, DB_HOST, DB_NAME.")
+from deployment_scripts.connection import get_engine, get_session, metadata
 
 #Shema
 TARGET_SCHEMA = "final"
@@ -22,10 +12,7 @@ TARGET_SCHEMA = "final"
 # Set to True to drop existing tables before creating
 DROP_IF_EXISTS = False
 
-engine = create_engine(
-    f"postgresql+psycopg2://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}",
-    pool_pre_ping=True,
-)
+engine = get_engine()
 
 # Helper to prefix CREATE TABLE with schema and table name
 def wrap_create(schema: str, table: str, body_sql: str) -> str:

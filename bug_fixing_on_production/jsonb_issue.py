@@ -1,19 +1,9 @@
 import os
 from sqlalchemy import create_engine, text
-from dotenv import load_dotenv
-
-# Load environment variables
-load_dotenv("config.env")
-
-# Get DB credentials from environment variables
-user = os.getenv("DB_USER")
-password = os.getenv("DB_PASSWORD")
-host = os.getenv("DB_HOST")
-port = os.getenv("DB_PORT")
-dbname = os.getenv("DB_NAME")
+from deployment_scripts.connection import get_engine, get_session, metadata
 
 # Connect to the PostgreSQL database
-engine = create_engine(f"postgresql+psycopg2://{user}:{password}@{host}:{port}/{dbname}")
+engine = get_engine()
 
 # Table and column details
 table = "intermediate.student_registration_details_2"

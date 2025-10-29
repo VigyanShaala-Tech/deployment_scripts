@@ -1,20 +1,10 @@
 import os
 import pandas as pd
 from sqlalchemy import create_engine, text
-from dotenv import load_dotenv
-
-# Load .env file
-load_dotenv("config.env")
-
-# Read DB credentials
-db_user = os.getenv("DB_USER")
-db_pass = os.getenv("DB_PASSWORD")
-db_host = os.getenv("DB_HOST")
-db_port = os.getenv("DB_PORT", "5432")
-db_name = os.getenv("DB_NAME")
+from deployment_scripts.connection import get_engine, get_session, metadata
 
 # SQLAlchemy engine
-engine = create_engine(f"postgresql+psycopg2://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}")
+engine = get_engine()
 
 # Query to insert Incubator 7.0 student assignments
 student_assignment_query = text("""

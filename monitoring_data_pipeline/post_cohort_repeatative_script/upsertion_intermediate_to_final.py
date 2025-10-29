@@ -1,20 +1,12 @@
 import os
+import sys
 import pandas as pd
-from sqlalchemy import create_engine, text
-from dotenv import load_dotenv
+from sqlalchemy import text
 
-# Load environment variables
-load_dotenv("config.env")
-
-# DB credentials
-db_user = os.getenv("DB_USER")
-db_pass = os.getenv("DB_PASSWORD")
-db_host = os.getenv("DB_HOST")
-db_port = os.getenv("DB_PORT", "5432")
-db_name = os.getenv("DB_NAME")
+from deployment_scripts.connection import get_engine, get_session, metadata
 
 # SQLAlchemy engine
-engine = create_engine(f"postgresql+psycopg2://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}")
+engine = get_engine()
 
 # -------------------------------
 # Function to handle duplicates, CSV export, and unique constraint

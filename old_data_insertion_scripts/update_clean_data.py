@@ -4,10 +4,7 @@ from sqlalchemy.orm import sessionmaker
 import pandas as pd
 import time
 import os
-from dotenv import load_dotenv
-
-# Load DB credentials
-load_dotenv(r'config.env') 
+from deployment_scripts.connection import get_engine, get_session, metadata
 
 # SQLAlchemy setup
 Base = declarative_base()
@@ -52,13 +49,8 @@ TARGET_COLUMNS = [
 ]
 
 # Create engine using environment variables
-engine = create_engine(
-    f"postgresql+psycopg2://{os.getenv('DB_USER')}:{os.getenv('DB_PASSWORD')}@"
-    f"{os.getenv('DB_HOST')}:{os.getenv('DB_PORT')}/{os.getenv('DB_NAME')}"
-)
-
-Session = sessionmaker(bind=engine)
-session = Session()
+engine = get_engine()
+session = get_session()
 
 # Track time
 start_time = time.time()
