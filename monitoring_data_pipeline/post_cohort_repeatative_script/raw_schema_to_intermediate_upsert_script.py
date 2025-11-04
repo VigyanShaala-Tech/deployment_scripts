@@ -59,7 +59,7 @@ student_assignment_query = text("""
                 ELSE 0
             END)::DECIMAL AS marks_pct,
             a.feedback AS feedback_comments,
-            a.submitted_at::TIMESTAMP AS submitted_at,
+            NULLIF(a.submitted_at, 'NaN')::timestamp AS submitted_at,
             a.assignment_file AS assignment_file
         FROM assignment_data a
         INNER JOIN student_details_data sd ON a.email = sd.email                    
