@@ -5,201 +5,720 @@ from sqlalchemy import text
 
 from deployment_scripts.connection import get_engine, get_session, metadata
 
+# SQLAlchemy engine
 engine = get_engine()
 
+# -------------------------------
+# Function to handle duplicates, CSV export, and unique constraint
+# -------------------------------
+def prepare_table_for_upsert(table_name, unique_columns, csv_filename):
+    # Step 1: Detect duplicates
+    dup_query = f"""
+    SELECT {', '.join(unique_columns)}, COUNT(*) AS duplicate_count
+    FROM {table_name}
+    GROUP BY {', '.join(unique_columns)}
+    HAVING COUNT(*) > 1;
+    """
+    with engine.begin() as conn:
+        dup_df = pd.read_sql(dup_query, conn)
+        if not dup_df.empty:
+            dup_df.to_csv(csv_filename, index=False)
+            print(f"* Duplicates exported to {csv_filename}")
+        else:
+            print(f"* No duplicates found in {table_name}.")
 
-# Query to insert Incubator 7.0 student assignments
-student_assignment_query = text("""
-    WITH cohort_data AS (
-        SELECT cohort_code, cohort_name FROM intermediate.cohort 
-    ),
-    raw_general_info_data AS (
-        SELECT "Incubator_Course_Name" AS cohort_name, "Student_id" AS student_id, "Email" as email
-        FROM raw.general_information_sheet
-    ),
-    student_details_data AS (
-        SELECT id,email FROM intermediate.student_details
-    ),
-    assignment_data AS (
-        SELECT
-            "assignment_name" AS name,
-            "Email" AS email,
-            "student_name" AS student_name,
-            "submission_status" AS submission_status,
-            "feedback_comments" AS feedback,
-            "submitted_at" AS submitted_at,
-            "assignment_file" AS assignment_file
-        FROM raw.assignment_monitoring_data
-    ),
-    resource_data AS (
-        SELECT id AS resource_id, title
-        FROM intermediate.resource
-        WHERE category = 'Assignment'
-    ),
-    student_assignment_data AS (
-        SELECT
-            sd.id::INT AS student_id,
-            r.resource_id::INT AS resource_id,
-            NULL::INT AS mentor_id,
-            c.cohort_code AS cohort_code,
-            a.submission_status::intermediate.submission_status_enum AS submission_status,
-            (CASE 
-                WHEN a.submission_status = 'under review' THEN 30
-                WHEN a.submission_status = 'reviewed' THEN 100
-                WHEN a.submission_status = 'rejected' THEN 80
-                ELSE 0
-            END)::DECIMAL AS marks_pct,
-            a.feedback AS feedback_comments,
-            a.submitted_at::TIMESTAMP AS submitted_at,
-            a.assignment_file AS assignment_file
-        FROM assignment_data a
-        INNER JOIN student_details_data sd ON a.email = sd.email                    
-        INNER JOIN raw_general_info_data g ON sd.email = g.email
-        INNER JOIN cohort_data c ON g.cohort_name = c.cohort_name 
-        INNER JOIN resource_data r ON a.name = r.title
-    )
-    INSERT INTO intermediate.student_assignment (
-        student_id, resource_id, mentor_id, cohort_code, submission_status,
-        marks_pct, feedback_comments, submitted_at, assignment_file
-    )
+    # Step 2: Remove duplicates (keep first occurrence)
+    delete_query = f"""
+    DELETE FROM {table_name} a
+    USING {table_name} b
+    WHERE a.ctid < b.ctid
+    AND {" AND ".join([f"a.{col} = b.{col}" for col in unique_columns])};
+    """
+    with engine.begin() as conn:
+        conn.execute(text(delete_query))
+        print(f"* Duplicates cleaned from {table_name}.")
+
+'''
+    # Step 3: Add unique constraint
+    constraint_name = f"uq_{table_name.replace('.', '_')}"
+    add_constraint_query = f"""
+    ALTER TABLE {table_name}
+    ADD CONSTRAINT {constraint_name} UNIQUE ({', '.join(unique_columns)});
+    """
+    with engine.begin() as conn:
+        try:
+            conn.execute(text(add_constraint_query))
+            print(f"* Unique constraint added on {table_name} ({', '.join(unique_columns)}).")
+        except Exception as e:
+            print(f"* Unique constraint might already exist for {table_name}: {e}")
+'''
+
+def clean_general_information_sheet():
+    dup_query = """
+    SELECT "Email", COUNT(*) AS duplicate_count
+    FROM raw.general_information_sheet
+    GROUP BY "Email"
+    HAVING COUNT(*) > 1;
+    """
+    with engine.begin() as conn:
+        dup_df = pd.read_sql(dup_query, conn)
+        if not dup_df.empty:
+            dup_df.to_csv("duplicate_general_information_sheet.csv", index=False)
+            print("* Duplicates exported to duplicate_general_information_sheet.csv")
+            
+            delete_query = """
+            DELETE FROM raw.general_information_sheet a
+            USING raw.general_information_sheet b
+            WHERE a.ctid < b.ctid
+              AND a."Email" = b."Email";
+            """
+            conn.execute(text(delete_query))
+            print("* Duplicates removed from raw.general_information_sheet.")
+        else:
+            print("* No duplicates found in raw.general_information_sheet.")
+
+# -------------------------------
+# Prepare tables for upsert
+# -------------------------------
+clean_general_information_sheet()
+#prepare_table_for_upsert("final.final_quiz", ["student_id", "resource_id"], "duplicate_final_quiz.csv")
+#prepare_table_for_upsert("final.final_assignment", ["student_id", "resource_id", "submitted_at"], "duplicate_final_assignment.csv")
+#prepare_table_for_upsert("final.daily_weekly_attendance",["student_id", "session_id"],"duplicate_daily_weekly_student_attendance.csv")
+
+#------------------------------------
+#Student demography query
+#-----------------------------------
+
+student_demography_upsert_query = text("""
+WITH student_details AS (
+    SELECT
+        sd.id,
+        sd.email,
+        sd.caste,
+        sd.annual_family_income_inr,
+        sd.location_id,
+        gs."Incubator_Batch"
+    FROM intermediate.student_details sd
+    JOIN raw.general_information_sheet gs
+        ON sd.email = gs."Email"
+),
+student_registration AS (
+    SELECT
+        student_id,
+        form_details
+    FROM intermediate.student_registration_details
+),
+mapped_subjects AS (
     SELECT 
-        student_id, resource_id, mentor_id, cohort_code, submission_status,
-        marks_pct, feedback_comments, submitted_at, assignment_file
-    FROM student_assignment_data
-    ON CONFLICT (student_id, resource_id, submitted_at)
-    DO UPDATE SET
-        mentor_id = EXCLUDED.mentor_id,
-        cohort_code = EXCLUDED.cohort_code,
-        submission_status = EXCLUDED.submission_status,
-        marks_pct = EXCLUDED.marks_pct,
-        feedback_comments = EXCLUDED.feedback_comments,
-        submitted_at = EXCLUDED.submitted_at,
-        assignment_file = EXCLUDED.assignment_file;
+        se.student_id,
+        se.education_course_id,
+        cm.course_name,
+        colm.standard_college_names AS college_name,
+        um.standard_university_names AS university_name,
+        sm.education_category,
+        sm.subject_area,
+        sm.sub_field
+    FROM intermediate.student_education se
+    JOIN LATERAL unnest(se.subject_id) AS unnested_subject(subject_id) ON TRUE
+    JOIN intermediate.subject_mapping sm
+        ON unnested_subject.subject_id = sm.id
+    JOIN intermediate.course_mapping cm
+        ON se.education_course_id = cm.course_id
+    LEFT JOIN intermediate.college_mapping colm
+        ON se.college_id = colm.college_id
+    LEFT JOIN intermediate.university_mapping um
+        ON se.university_id = um.university_id
+),
+aggregated_subjects AS (
+    SELECT
+        student_id,
+        education_course_id,
+        string_agg(DISTINCT education_category, ', ') AS education_category,
+        string_agg(DISTINCT subject_area, ', ') AS subject_areas,
+        string_agg(DISTINCT sub_field, ', ') AS sub_fields_list
+    FROM mapped_subjects
+    GROUP BY student_id, education_course_id
+),
+non_aggregated AS (
+    SELECT DISTINCT
+        student_id,
+        education_course_id,
+        course_name,
+        college_name,
+        university_name
+    FROM mapped_subjects
+)
+INSERT INTO final.student_demography (
+    student_id,
+    email,
+    caste,
+    annual_family_income_inr,
+    "Incubator_Batch",
+    state_union_territory,
+    district,
+    country,
+    city_category,
+    form_details,
+    education_category,
+    subject_areas,
+    sub_fields_list,
+    course_name,
+    college_name,
+    university_name
+)
+SELECT
+    sd.id AS student_id,
+    sd.email,
+    sd.caste,
+    sd.annual_family_income_inr,
+    sd."Incubator_Batch",
+    lm.state_union_territory,
+    lm.district,
+    lm.country,
+    lm.city_category,
+    sr.form_details,
+    asub.education_category,
+    asub.subject_areas,
+    asub.sub_fields_list,
+    na.course_name,
+    na.college_name,
+    na.university_name
+FROM student_details sd
+LEFT JOIN intermediate.location_mapping lm
+    ON sd.location_id = lm.location_id
+LEFT JOIN student_registration sr
+    ON sd.id = sr.student_id
+LEFT JOIN aggregated_subjects asub
+    ON sd.id = asub.student_id
+LEFT JOIN non_aggregated na
+    ON sd.id = na.student_id
+    AND asub.education_course_id = na.education_course_id
+ON CONFLICT (email)
+DO UPDATE SET
+    student_id = EXCLUDED.student_id,
+    caste = EXCLUDED.caste,
+    annual_family_income_inr = EXCLUDED.annual_family_income_inr,
+    "Incubator_Batch" = EXCLUDED."Incubator_Batch",
+    state_union_territory = EXCLUDED.state_union_territory,
+    district = EXCLUDED.district,
+    country = EXCLUDED.country,
+    city_category = EXCLUDED.city_category,
+    form_details = EXCLUDED.form_details,
+    education_category = EXCLUDED.education_category,
+    subject_areas = EXCLUDED.subject_areas,
+    sub_fields_list = EXCLUDED.sub_fields_list,
+    course_name = EXCLUDED.course_name,
+    college_name = EXCLUDED.college_name,
+    university_name = EXCLUDED.university_name;
 """)
 
 
-student_session_query = text("""
-    WITH cohort_data AS (
-        SELECT cohort_code, cohort_name FROM intermediate.cohort
-    ),
-    raw_general_info_data AS (
-        SELECT "Incubator_Course_Name" AS cohort_name, "Student_id" AS student_id, "Email" AS email
-        FROM raw.general_information_sheet
-    ),
-    student_details_data AS (
-        SELECT id,email FROM intermediate.student_details
-    ),
-    session_data AS (
-        SELECT id AS session_id, session_name, cohort_code, code
-        FROM intermediate.live_session
-    ),
-    raw_student_session_info AS (
-        SELECT
-            "Email" AS email,
-            "Session_Code" AS session_code,
-            "Duration_in_secs" AS duration_in_sec,
-            "watched_on" AS watched_on
-        FROM raw.student_session_information
-        WHERE "Session_Code" LIKE 'SUK%' 
-           OR "Session_Code" LIKE 'WS%'      
-           OR "Session_Code" LIKE 'MC%'
-    ),
-    student_live_session_cte AS (
-        SELECT
-            sd.id::INT AS student_id,
-            s.session_id::INT AS session_id,
-            ssi.duration_in_sec::INT AS duration_in_sec,
-            ssi.watched_on::DATE AS watched_on
-        FROM raw_student_session_info ssi
-        INNER JOIN student_details_data sd ON ssi.email = sd.email                    
-        INNER JOIN raw_general_info_data g ON sd.email = g.email
-        INNER JOIN cohort_data c ON g.cohort_name = c.cohort_name
-        INNER JOIN session_data s ON ssi.session_code = s.code AND c.cohort_code = s.cohort_code
-    )
-    INSERT INTO intermediate.student_session (
-        student_id, session_id, duration_in_sec, watched_on
-    )
-    SELECT * FROM student_live_session_cte
-    ON CONFLICT (student_id, session_id)
-    DO UPDATE SET
-        duration_in_sec = EXCLUDED.duration_in_sec,
-        watched_on = EXCLUDED.watched_on;
+# -------------------------------
+# Quiz upsert query
+# -------------------------------
+quiz_upsert_query = text("""
+WITH student_quiz AS (
+    SELECT
+        sd.id,
+        sd.student_id,
+        sd.cohort_code,
+        sd.resource_id,
+        sd.marks,
+        sd.max_marks,
+        gs.category,
+        gs.title,
+        gis."Incubator_Batch",
+        sds.location_id
+    FROM intermediate.student_quiz sd
+    JOIN intermediate.resource gs
+        ON sd.resource_id = gs.id
+    JOIN intermediate.student_details sds
+        ON sd.student_id = sds.id
+    JOIN raw.general_information_sheet gis
+        ON sds.email = gis."Email"
+    
+),
+student_registration AS (
+    SELECT student_id, form_details
+    FROM intermediate.student_registration_details
+),
+mapped_subjects AS (
+    SELECT 
+        se.student_id,
+        se.education_course_id,
+        cm.course_name,
+        colm.standard_college_names AS college_name,
+        um.standard_university_names AS university_name,
+        sm.education_category,
+        sm.subject_area,
+        sm.sub_field
+    FROM intermediate.student_education se
+    JOIN LATERAL unnest(se.subject_id) AS unnested_subject(subject_id) ON TRUE
+    JOIN intermediate.subject_mapping sm
+        ON unnested_subject.subject_id = sm.id
+    JOIN intermediate.course_mapping cm
+        ON se.education_course_id = cm.course_id
+    LEFT JOIN intermediate.college_mapping colm
+        ON se.college_id = colm.college_id
+    LEFT JOIN intermediate.university_mapping um
+        ON se.university_id = um.university_id
+),
+aggregated_subjects AS (
+    SELECT
+        student_id,
+        education_course_id,
+        string_agg(DISTINCT education_category, ', ') AS education_category,
+        string_agg(DISTINCT subject_area, ', ') AS subject_areas,
+        string_agg(DISTINCT sub_field, ', ') AS sub_fields_list
+    FROM mapped_subjects
+    GROUP BY student_id, education_course_id
+),
+non_aggregated AS (
+    SELECT DISTINCT
+        student_id,
+        education_course_id,
+        course_name,
+        college_name,
+        university_name
+    FROM mapped_subjects
+)
+INSERT INTO final.final_quiz (
+    id,
+    resource_id,
+    student_id,
+    "Incubator_Batch",
+    category,
+    title,
+    cohort_code,
+    marks,
+    max_marks,
+    form_details,
+    state_union_territory,
+    district,
+    country,
+    city_category,
+    education_category,
+    subject_areas,
+    sub_fields_list,
+    course_name,
+    college_name,
+    university_name
+)
+SELECT
+    ss.id,
+    ss.resource_id,
+    ss.student_id,
+    ss."Incubator_Batch",
+    ss.category,
+    ss.title,
+    ss.cohort_code,
+    ss.marks,
+    ss.max_marks,
+    sr.form_details,
+    lm.state_union_territory,
+    lm.district,
+    lm.country,
+    lm.city_category,
+    asub.education_category,
+    asub.subject_areas,
+    asub.sub_fields_list,
+    na.course_name,
+    na.college_name,
+    na.university_name
+FROM student_quiz ss
+LEFT JOIN intermediate.location_mapping lm
+    ON ss.location_id = lm.location_id
+LEFT JOIN student_registration sr
+    ON ss.student_id = sr.student_id
+LEFT JOIN aggregated_subjects asub
+    ON ss.student_id = asub.student_id
+LEFT JOIN non_aggregated na
+    ON ss.student_id = na.student_id
+    AND asub.education_course_id = na.education_course_id
+ON CONFLICT (student_id, resource_id)
+DO UPDATE SET
+    student_id = EXCLUDED.student_id,
+    "Incubator_Batch" = EXCLUDED."Incubator_Batch",
+    category = EXCLUDED.category,
+    title = EXCLUDED.title,
+    cohort_code = EXCLUDED.cohort_code,
+    marks = EXCLUDED.marks,
+    max_marks = EXCLUDED.max_marks,
+    form_details = EXCLUDED.form_details,
+    state_union_territory = EXCLUDED.state_union_territory,
+    district = EXCLUDED.district,
+    country = EXCLUDED.country,
+    city_category = EXCLUDED.city_category,
+    education_category = EXCLUDED.education_category,
+    subject_areas = EXCLUDED.subject_areas,
+    sub_fields_list = EXCLUDED.sub_fields_list,
+    course_name = EXCLUDED.course_name,
+    college_name = EXCLUDED.college_name,
+    university_name = EXCLUDED.university_name;
 """)
 
-student_quiz_query = text("""
-    WITH raw_general_info_data AS (
-        SELECT "Incubator_Course_Name" AS cohort_name, "Student_id" AS student_id, "Email" AS email
-        FROM raw.general_information_sheet
-    ),
-    quiz_data AS (
-        SELECT
-            "user_id" AS email,
-            "data_fields" AS quiz_name,
-            "value" AS obtained_marks
-        FROM raw.incubator_quiz_monitoring
-    ),
-    cohort_data AS (
-        SELECT cohort_code, cohort_name FROM intermediate.cohort
-    ),
-    student_details_data AS (
-        SELECT id,email FROM intermediate.student_details
-    ),
-    resource_data AS (
-        SELECT id AS resource_id, title
-        FROM intermediate.resource
-        WHERE category = 'Quiz'
-    ),
-    student_quiz_data AS (
-        SELECT
-            sd.id::INT AS student_id,
-            r.resource_id::INT AS resource_id,
-            c.cohort_code AS cohort_code,
-            100::INT AS max_marks,
-            q.obtained_marks::INT AS marks,
-            NULL::INT AS reattempts,
-            NULL::TIMESTAMP AS attempted_at
-        FROM quiz_data q
-        INNER JOIN student_details_data sd ON q.email = sd.email                    
-        INNER JOIN raw_general_info_data g ON sd.email = g.email
-        INNER JOIN cohort_data c ON g.cohort_name = c.cohort_name
-        INNER JOIN resource_data r ON q.quiz_name = r.title
-    )
-    INSERT INTO intermediate.student_quiz (
-        student_id, resource_id, cohort_code, max_marks, marks, reattempts, attempted_at
-    )
-    SELECT * FROM student_quiz_data
-    ON CONFLICT (student_id, resource_id)
-    DO UPDATE SET
-        cohort_code = EXCLUDED.cohort_code,
-        max_marks = EXCLUDED.max_marks,
-        marks = EXCLUDED.marks,
-        reattempts = EXCLUDED.reattempts,
-        attempted_at = EXCLUDED.attempted_at;
+# -------------------------------
+# Assignment upsert query
+# -------------------------------
+assignment_upsert_query = text("""
+WITH student_assignment AS (
+    SELECT
+        sd.id,
+        sd.student_id,
+        sd.cohort_code,
+        sd.submitted_at,
+        sd.resource_id AS student_resource_id,
+        sd.submission_status,
+        gs.id AS resource_id,
+        gs.category,
+        gs.title,
+        gis."Incubator_Batch",
+        sds.location_id
+    FROM intermediate.student_assignment sd
+    JOIN intermediate.resource gs
+        ON sd.resource_id = gs.id
+    JOIN intermediate.student_details sds
+        ON sd.student_id = sds.id                           
+    JOIN raw.general_information_sheet gis
+        ON sds.email = gis."Email"
+    
+),
+student_registration AS (
+    SELECT student_id, form_details
+    FROM intermediate.student_registration_details
+),
+mapped_subjects AS (
+    SELECT 
+        se.student_id,
+        se.education_course_id,
+        cm.course_name,
+        colm.standard_college_names AS college_name,
+        um.standard_university_names AS university_name,
+        sm.education_category,
+        sm.subject_area,
+        sm.sub_field
+    FROM intermediate.student_education se
+    JOIN LATERAL unnest(se.subject_id) AS unnested_subject(subject_id) ON TRUE
+    JOIN intermediate.subject_mapping sm
+        ON unnested_subject.subject_id = sm.id
+    JOIN intermediate.course_mapping cm
+        ON se.education_course_id = cm.course_id
+    LEFT JOIN intermediate.college_mapping colm
+        ON se.college_id = colm.college_id
+    LEFT JOIN intermediate.university_mapping um
+        ON se.university_id = um.university_id
+),
+aggregated_subjects AS (
+    SELECT
+        student_id,
+        education_course_id,
+        string_agg(DISTINCT education_category, ', ') AS education_category,
+        string_agg(DISTINCT subject_area, ', ') AS subject_areas,
+        string_agg(DISTINCT sub_field, ', ') AS sub_fields_list
+    FROM mapped_subjects
+    GROUP BY student_id, education_course_id
+),
+non_aggregated AS (
+    SELECT DISTINCT
+        student_id,
+        education_course_id,
+        course_name,
+        college_name,
+        university_name
+    FROM mapped_subjects
+)
+INSERT INTO final.final_assignment (
+    student_id,
+    "Incubator_Batch",
+    resource_id,
+    category,
+    title,
+    cohort_code,
+    submission_status,
+    submitted_at,
+    form_details,
+    state_union_territory,
+    district,
+    country,
+    city_category,
+    education_category,
+    subject_areas,
+    sub_fields_list,
+    course_name,
+    college_name,
+    university_name
+)
+SELECT
+    ss.student_id,
+    ss."Incubator_Batch",
+    ss.student_resource_id AS resource_id,
+    ss.category,
+    ss.title,
+    ss.cohort_code,
+    ss.submission_status,
+    ss.submitted_at,
+    sr.form_details,
+    lm.state_union_territory,
+    lm.district,
+    lm.country,
+    lm.city_category,
+    asub.education_category,
+    asub.subject_areas,
+    asub.sub_fields_list,
+    na.course_name,
+    na.college_name,
+    na.university_name
+FROM student_assignment ss
+LEFT JOIN intermediate.location_mapping lm
+    ON ss.location_id = lm.location_id
+LEFT JOIN student_registration sr
+    ON ss.student_id = sr.student_id
+LEFT JOIN aggregated_subjects asub
+    ON ss.student_id = asub.student_id
+LEFT JOIN non_aggregated na
+    ON ss.student_id = na.student_id
+    AND asub.education_course_id = na.education_course_id
+ON CONFLICT (student_id, resource_id, submitted_at)
+DO UPDATE SET
+    "Incubator_Batch" = EXCLUDED."Incubator_Batch",
+    category = EXCLUDED.category,
+    title = EXCLUDED.title,
+    cohort_code = EXCLUDED.cohort_code,
+    submission_status = EXCLUDED.submission_status,
+    form_details = EXCLUDED.form_details,
+    state_union_territory = EXCLUDED.state_union_territory,
+    district = EXCLUDED.district,
+    country = EXCLUDED.country,
+    city_category = EXCLUDED.city_category,
+    education_category = EXCLUDED.education_category,
+    subject_areas = EXCLUDED.subject_areas,
+    sub_fields_list = EXCLUDED.sub_fields_list,
+    course_name = EXCLUDED.course_name,
+    college_name = EXCLUDED.college_name,
+    university_name = EXCLUDED.university_name;
 """)
 
+# -------------------------------
+# Attendance upsert query
+# -------------------------------
 
-# Execute queries
+attendance_upsert_query = text("""
+WITH cohort_range AS (
+    SELECT start_date, end_date
+    FROM intermediate.cohort
+    WHERE cohort_code = 'INC007'
+),
+
+live_sessions AS (
+    SELECT 
+        ls.id,
+        ls.session_name,
+        ls.code,
+        ls.conducted_on::date AS conducted_on
+    FROM intermediate.live_session ls
+    JOIN cohort_range cr
+        ON ls.conducted_on::date BETWEEN cr.start_date AND cr.end_date
+),
+
+student_attendance AS (
+    SELECT 
+        sd.student_id,
+        gis."Incubator_Batch" AS incubator_batch,
+        sdet.location_id,
+        ls.id AS session_id,               
+        ls.session_name AS title,
+        ls.code,
+        ls.conducted_on,
+        sd.duration_in_sec,
+        COALESCE(sd.watched_on::date, ls.conducted_on) AS attended_on
+    FROM intermediate.student_session sd
+    JOIN live_sessions ls
+        ON sd.session_id = ls.id
+    JOIN intermediate.student_details sdet
+        ON sd.student_id = sdet.id
+    JOIN raw.general_information_sheet gis
+        ON sdet.email = gis."Email"
+),
+
+student_registration AS (
+    SELECT
+        student_id,
+        form_details
+    FROM intermediate.student_registration_details
+),
+
+mapped_subjects AS (
+    SELECT 
+        se.student_id,
+        se.education_course_id,
+        cm.course_name,
+        colm.standard_college_names AS college_name,
+        um.standard_university_names AS university_name,
+        sm.education_category,
+        sm.subject_area,
+        sm.sub_field
+    FROM intermediate.student_education se
+    JOIN LATERAL unnest(se.subject_id) AS unnested_subject(subject_id) ON TRUE
+    JOIN intermediate.subject_mapping sm
+        ON unnested_subject.subject_id = sm.id
+    JOIN intermediate.course_mapping cm
+        ON se.education_course_id = cm.course_id
+    LEFT JOIN intermediate.college_mapping colm
+        ON se.college_id = colm.college_id
+    LEFT JOIN intermediate.university_mapping um
+        ON se.university_id = um.university_id
+),
+
+aggregated_subjects AS (
+    SELECT
+        student_id,
+        education_course_id,
+        string_agg(DISTINCT education_category, ', ') AS education_category,
+        string_agg(DISTINCT subject_area, ', ') AS subject_areas,
+        string_agg(DISTINCT sub_field, ', ') AS sub_fields_list
+    FROM mapped_subjects
+    GROUP BY student_id, education_course_id
+),
+
+non_aggregated AS (
+    SELECT DISTINCT
+        student_id,
+        education_course_id,
+        course_name,
+        college_name,
+        university_name
+    FROM mapped_subjects
+)
+
+INSERT INTO final.daily_weekly_attendance (
+    weekday_name,
+    student_id,
+    session_id,
+    incubator_batch,
+    title,
+    code,
+    conducted_on,
+    attended_on,
+    duration_in_sec,
+    form_details,
+    state_union_territory,
+    district,
+    country,
+    city_category,
+    education_category,
+    subject_areas,
+    sub_fields_list,
+    course_name,
+    college_name,
+    university_name
+)
+SELECT
+    TRIM(TO_CHAR(sa.attended_on, 'Day')) AS weekday_name,  
+    sa.student_id,
+    sa.session_id,
+    sa.incubator_batch,
+    sa.title,
+    sa.code,
+    sa.conducted_on,
+    sa.attended_on,
+    sa.duration_in_sec,
+    sr.form_details,
+    lm.state_union_territory,
+    lm.district,
+    lm.country,
+    lm.city_category,
+    asub.education_category,
+    asub.subject_areas,
+    asub.sub_fields_list,
+    na.course_name,
+    na.college_name,
+    na.university_name
+FROM student_attendance sa
+LEFT JOIN intermediate.location_mapping lm
+    ON sa.location_id = lm.location_id
+LEFT JOIN student_registration sr
+    ON sa.student_id = sr.student_id
+LEFT JOIN aggregated_subjects asub
+    ON sa.student_id = asub.student_id
+LEFT JOIN non_aggregated na
+    ON sa.student_id = na.student_id
+   AND asub.education_course_id = na.education_course_id
+ON CONFLICT (student_id, session_id)
+DO UPDATE SET
+    weekday_name = EXCLUDED.weekday_name,
+    incubator_batch = EXCLUDED.incubator_batch,
+    title = EXCLUDED.title,
+    code = EXCLUDED.code,
+    conducted_on = EXCLUDED.conducted_on,
+    attended_on = EXCLUDED.attended_on,
+    duration_in_sec = EXCLUDED.duration_in_sec,
+    form_details = EXCLUDED.form_details,
+    state_union_territory = EXCLUDED.state_union_territory,
+    district = EXCLUDED.district,
+    country = EXCLUDED.country,
+    city_category = EXCLUDED.city_category,
+    education_category = EXCLUDED.education_category,
+    subject_areas = EXCLUDED.subject_areas,
+    sub_fields_list = EXCLUDED.sub_fields_list,
+    course_name = EXCLUDED.course_name,
+    college_name = EXCLUDED.college_name,
+    university_name = EXCLUDED.university_name;
+""")
+
+# -------------------------------
+# Execute upserts
+# -------------------------------
 
 if __name__ == "__main__":
 
     with engine.begin() as conn:
         try:
-            assignment_result = conn.execute(student_assignment_query)
-            print("* Data returned to 'student_assignment' table.")
-            print(f"   - Rows inserted/updated: {assignment_result.rowcount}")        
-        except Exception as e:
-            print(f"! Failed to insert into 'student_assignment': {e}")
-
-        try:    
-            session_result = conn.execute(student_session_query)
-            print("* Data returned to 'student_session' table.")
-            print(f"   - Rows inserted/updated: {session_result.rowcount}")        
-        except Exception as e:
-            print(f"! Failed to insert into 'student_session': {e}")
-
-        try:
-            quiz_result = conn.execute(student_quiz_query)
-            print("* Data returned to 'student_quiz' table.")
+            prepare_table_for_upsert("final.final_quiz", ["student_id", "resource_id"], "duplicate_final_quiz.csv")
+            quiz_result = conn.execute(quiz_upsert_query)
+            print("* Data upserted to 'final.final_quiz'.")
             print(f"   - Rows inserted/updated: {quiz_result.rowcount}")
         except Exception as e:
-            print(f"! Failed to insert into 'student_quiz': {e}")
+            print(f"! Failed to upsert into 'final.final_quiz': {e}")
+
+        try:
+            prepare_table_for_upsert("final.student_demography", ["email"], "duplicate_final_student_demography.csv")
+            demography_result = conn.execute(student_demography_upsert_query)
+            print("* Data upserted to 'final.student_demography'.")
+            print(f"   - Rows inserted/updated: {demography_result.rowcount}")
+        except Exception as e:
+            print(f"! Failed to upsert into 'final.student_demography': {e}")
+
+        try:
+            prepare_table_for_upsert("final.final_assignment", ["student_id", "resource_id", "submitted_at"], "duplicate_final_assignment.csv")
+            assign_result = conn.execute(assignment_upsert_query)
+            print("* Data upserted to 'final.final_assignment'.")
+            print(f"   - Rows inserted/updated: {assign_result.rowcount}")
+        except Exception as e:
+            print(f"! Failed to upsert into 'final.final_assignment': {e}")
+
+        try:
+            prepare_table_for_upsert("final.daily_weekly_attendance",["student_id", "session_id"],"duplicate_daily_weekly_student_attendance.csv")
+            attendance_result = conn.execute(attendance_upsert_query)
+            print("* Data upserted to 'final.daily_weekly_attendance'.")
+            print(f"   - Rows inserted/updated: {attendance_result.rowcount}")
+        except Exception as e:
+            print(f"! Failed to upsert into 'final.daily_weekly_attendance': {e}")
+
+
+
+'''if __name__ == "__main__":
+    with engine.begin() as conn:
+        # Quiz upsert
+        quiz_result = conn.execute(quiz_upsert_query)
+        print("* Data upserted to 'final.final_quiz'.")
+        print(f"   - Rows inserted/updated: {quiz_result.rowcount}")
+
+        # Assignment upsert
+        assign_result = conn.execute(assignment_upsert_query)
+        print("* Data upserted to 'final.final_assignment'.")
+        print(f"   - Rows inserted/updated: {assign_result.rowcount}")
+
+        # Attendance upsert
+        attendance_result = conn.execute(attendance_upsert_query)
+        print("* Data upserted to 'final.daily_weekly_attendance'.")
+        print(f"   - Rows inserted/updated: {attendance_result.rowcount}")'''
