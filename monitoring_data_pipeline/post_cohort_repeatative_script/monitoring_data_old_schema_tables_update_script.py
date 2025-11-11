@@ -18,7 +18,7 @@ def import_csv_to_db(folder_path, engine, filter_text=""):
     for file in csv_files:
         file_path = os.path.join(folder_path, file)
         table_name = file.rsplit(".", 1)[0].replace(" ", "_").lower()
-        schema = "raw"
+        schema = "old"
 
         df = pd.read_csv(file_path, encoding="ISO-8859-1", sep=None, engine='python')
         if df.empty:
@@ -102,7 +102,7 @@ def import_csv_to_db(folder_path, engine, filter_text=""):
                                 ADD CONSTRAINT {constraint_name} UNIQUE ("Email", "Session_Code")
                             """
                             conn.execute(text(add_constraint_stmt))
-                            print(f"Added UNIQUE constraint on (Email, Session_Code) to raw.{table_name}")
+                            print(f"Added UNIQUE constraint on (Email, Session_Code) to old.{table_name}")
                         except Exception as e:
                             print(f"** Warning: Could not add constraint. It might already exist. {e}")
 
@@ -115,7 +115,7 @@ def import_csv_to_db(folder_path, engine, filter_text=""):
                                 ADD COLUMN "watched_on" TEXT
                             """
                             conn.execute(text(alter_column_stmt))
-                            print(f"## Added column 'watched_on' to raw.{table_name}")
+                            print(f"## Added column 'watched_on' to old.{table_name}")
                         except Exception as e:
                             print(f"** Warning: Could not add 'watched_on' column. It might already exist or failed: {e}")
 

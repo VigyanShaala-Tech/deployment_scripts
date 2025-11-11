@@ -9,16 +9,17 @@ engine = get_engine()
 
 
 # Query to insert Incubator 7.0 student assignments
+
 student_assignment_query = text("""
     WITH cohort_data AS (
-        SELECT cohort_code, cohort_name FROM intermediate.cohort 
+        SELECT cohort_code, cohort_name FROM raw.cohort 
     ),
     raw_general_info_data AS (
         SELECT "Incubator_Course_Name" AS cohort_name, "Student_id" AS student_id, "Email" as email
-        FROM raw.general_information_sheet
+        FROM old.general_information_sheet
     ),
     student_details_data AS (
-        SELECT id,email FROM intermediate.student_details
+        SELECT id,email FROM raw.student_details
     ),
     assignment_data AS (
         SELECT
@@ -29,11 +30,11 @@ student_assignment_query = text("""
             "feedback_comments" AS feedback,
             "submitted_at" AS submitted_at,
             "assignment_file" AS assignment_file
-        FROM raw.assignment_monitoring_data
+        FROM old.assignment_monitoring_data
     ),
     resource_data AS (
         SELECT id AS resource_id, title
-        FROM intermediate.resource
+        FROM raw.resource
         WHERE category = 'Assignment'
     ),
     student_assignment_data AS (
@@ -42,7 +43,7 @@ student_assignment_query = text("""
             r.resource_id::INT AS resource_id,
             NULL::INT AS mentor_id,
             c.cohort_code AS cohort_code,
-            a.submission_status::intermediate.submission_status_enum AS submission_status,
+            a.submission_status::raw.submission_status_enum AS submission_status,
             (CASE 
                 WHEN a.submission_status = 'under review' THEN 30
                 WHEN a.submission_status = 'reviewed' THEN 100
@@ -50,7 +51,7 @@ student_assignment_query = text("""
                 ELSE 0
             END)::DECIMAL AS marks_pct,
             a.feedback AS feedback_comments,
-            a.submitted_at::TIMESTAMP AS submitted_at,
+            NULLIF(a.submitted_at, 'NaN')::timestamp AS submitted_at,
             a.assignment_file AS assignment_file
         FROM assignment_data a
         INNER JOIN student_details_data sd ON a.email = sd.email                    
@@ -58,7 +59,7 @@ student_assignment_query = text("""
         INNER JOIN cohort_data c ON g.cohort_name = c.cohort_name 
         INNER JOIN resource_data r ON a.name = r.title
     )
-    INSERT INTO intermediate.student_assignment (
+    INSERT INTO raw.student_assignment (
         student_id, resource_id, mentor_id, cohort_code, submission_status,
         marks_pct, feedback_comments, submitted_at, assignment_file
     )
@@ -80,18 +81,18 @@ student_assignment_query = text("""
 
 student_session_query = text("""
     WITH cohort_data AS (
-        SELECT cohort_code, cohort_name FROM intermediate.cohort
+        SELECT cohort_code, cohort_name FROM raw.cohort
     ),
     raw_general_info_data AS (
         SELECT "Incubator_Course_Name" AS cohort_name, "Student_id" AS student_id, "Email" AS email
-        FROM raw.general_information_sheet
+        FROM old.general_information_sheet
     ),
     student_details_data AS (
-        SELECT id,email FROM intermediate.student_details
+        SELECT id,email FROM raw.student_details
     ),
     session_data AS (
         SELECT id AS session_id, session_name, cohort_code, code
-        FROM intermediate.live_session
+        FROM raw.live_session
     ),
     raw_student_session_info AS (
         SELECT
@@ -99,7 +100,7 @@ student_session_query = text("""
             "Session_Code" AS session_code,
             "Duration_in_secs" AS duration_in_sec,
             "watched_on" AS watched_on
-        FROM raw.student_session_information
+        FROM old.student_session_information
         WHERE "Session_Code" LIKE 'SUK%' 
            OR "Session_Code" LIKE 'WS%'      
            OR "Session_Code" LIKE 'MC%'
@@ -116,7 +117,7 @@ student_session_query = text("""
         INNER JOIN cohort_data c ON g.cohort_name = c.cohort_name
         INNER JOIN session_data s ON ssi.session_code = s.code AND c.cohort_code = s.cohort_code
     )
-    INSERT INTO intermediate.student_session (
+    INSERT INTO raw.student_session (
         student_id, session_id, duration_in_sec, watched_on
     )
     SELECT * FROM student_live_session_cte
@@ -129,24 +130,24 @@ student_session_query = text("""
 student_quiz_query = text("""
     WITH raw_general_info_data AS (
         SELECT "Incubator_Course_Name" AS cohort_name, "Student_id" AS student_id, "Email" AS email
-        FROM raw.general_information_sheet
+        FROM old.general_information_sheet
     ),
     quiz_data AS (
         SELECT
             "user_id" AS email,
             "data_fields" AS quiz_name,
             "value" AS obtained_marks
-        FROM raw.incubator_quiz_monitoring
+        FROM old.incubator_quiz_monitoring
     ),
     cohort_data AS (
-        SELECT cohort_code, cohort_name FROM intermediate.cohort
+        SELECT cohort_code, cohort_name FROM raw.cohort
     ),
     student_details_data AS (
-        SELECT id,email FROM intermediate.student_details
+        SELECT id,email FROM raw.student_details
     ),
     resource_data AS (
         SELECT id AS resource_id, title
-        FROM intermediate.resource
+        FROM raw.resource
         WHERE category = 'Quiz'
     ),
     student_quiz_data AS (
@@ -164,7 +165,7 @@ student_quiz_query = text("""
         INNER JOIN cohort_data c ON g.cohort_name = c.cohort_name
         INNER JOIN resource_data r ON q.quiz_name = r.title
     )
-    INSERT INTO intermediate.student_quiz (
+    INSERT INTO raw.student_quiz (
         student_id, resource_id, cohort_code, max_marks, marks, reattempts, attempted_at
     )
     SELECT * FROM student_quiz_data

@@ -56,7 +56,7 @@ def prepare_table_for_upsert(table_name, unique_columns, csv_filename):
 def clean_general_information_sheet():
     dup_query = """
     SELECT "Email", COUNT(*) AS duplicate_count
-    FROM raw.general_information_sheet
+    FROM old.general_information_sheet
     GROUP BY "Email"
     HAVING COUNT(*) > 1;
     """
@@ -67,23 +67,23 @@ def clean_general_information_sheet():
             print("* Duplicates exported to duplicate_general_information_sheet.csv")
             
             delete_query = """
-            DELETE FROM raw.general_information_sheet a
-            USING raw.general_information_sheet b
+            DELETE FROM old.general_information_sheet a
+            USING old.general_information_sheet b
             WHERE a.ctid < b.ctid
               AND a."Email" = b."Email";
             """
             conn.execute(text(delete_query))
-            print("* Duplicates removed from raw.general_information_sheet.")
+            print("* Duplicates removed from old.general_information_sheet.")
         else:
-            print("* No duplicates found in raw.general_information_sheet.")
+            print("* No duplicates found in old.general_information_sheet.")
 
 # -------------------------------
 # Prepare tables for upsert
 # -------------------------------
 clean_general_information_sheet()
-#prepare_table_for_upsert("final.final_quiz", ["student_id", "resource_id"], "duplicate_final_quiz.csv")
-#prepare_table_for_upsert("final.final_assignment", ["student_id", "resource_id", "submitted_at"], "duplicate_final_assignment.csv")
-#prepare_table_for_upsert("final.daily_weekly_attendance",["student_id", "session_id"],"duplicate_daily_weekly_student_attendance.csv")
+#prepare_table_for_upsert("intermediate.final_quiz", ["student_id", "resource_id"], "duplicate_final_quiz.csv")
+#prepare_table_for_upsert("intermediate.final_assignment", ["student_id", "resource_id", "submitted_at"], "duplicate_final_assignment.csv")
+#prepare_table_for_upsert("intermediate.daily_weekly_attendance",["student_id", "session_id"],"duplicate_daily_weekly_student_attendance.csv")
 
 #------------------------------------
 #Student demography query
@@ -98,15 +98,16 @@ WITH student_details AS (
         sd.annual_family_income_inr,
         sd.location_id,
         gs."Incubator_Batch"
-    FROM intermediate.student_details sd
-    JOIN raw.general_information_sheet gs
+    FROM raw.student_details sd
+    JOIN old.general_information_sheet gs
         ON sd.email = gs."Email"
 ),
 student_registration AS (
     SELECT
         student_id,
         form_details
-    FROM intermediate.student_registration_details
+                                       
+    FROM raw.student_registration_details_2
 ),
 mapped_subjects AS (
     SELECT 
@@ -118,15 +119,15 @@ mapped_subjects AS (
         sm.education_category,
         sm.subject_area,
         sm.sub_field
-    FROM intermediate.student_education se
+    FROM raw.student_education se
     JOIN LATERAL unnest(se.subject_id) AS unnested_subject(subject_id) ON TRUE
-    JOIN intermediate.subject_mapping sm
+    JOIN raw.subject_mapping sm
         ON unnested_subject.subject_id = sm.id
-    JOIN intermediate.course_mapping cm
+    JOIN raw.course_mapping cm
         ON se.education_course_id = cm.course_id
-    LEFT JOIN intermediate.college_mapping colm
+    LEFT JOIN raw.college_mapping colm
         ON se.college_id = colm.college_id
-    LEFT JOIN intermediate.university_mapping um
+    LEFT JOIN raw.university_mapping um
         ON se.university_id = um.university_id
 ),
 aggregated_subjects AS (
@@ -148,7 +149,7 @@ non_aggregated AS (
         university_name
     FROM mapped_subjects
 )
-INSERT INTO final.student_demography (
+INSERT INTO intermediate.student_demography (
     student_id,
     email,
     caste,
@@ -184,7 +185,7 @@ SELECT
     na.college_name,
     na.university_name
 FROM student_details sd
-LEFT JOIN intermediate.location_mapping lm
+LEFT JOIN raw.location_mapping lm
     ON sd.location_id = lm.location_id
 LEFT JOIN student_registration sr
     ON sd.id = sr.student_id
@@ -229,18 +230,18 @@ WITH student_quiz AS (
         gs.title,
         gis."Incubator_Batch",
         sds.location_id
-    FROM intermediate.student_quiz sd
-    JOIN intermediate.resource gs
+    FROM raw.student_quiz sd
+    JOIN raw.resource gs
         ON sd.resource_id = gs.id
-    JOIN intermediate.student_details sds
+    JOIN raw.student_details sds
         ON sd.student_id = sds.id
-    JOIN raw.general_information_sheet gis
+    JOIN old.general_information_sheet gis
         ON sds.email = gis."Email"
     
 ),
 student_registration AS (
     SELECT student_id, form_details
-    FROM intermediate.student_registration_details
+    FROM raw.student_registration_details_2
 ),
 mapped_subjects AS (
     SELECT 
@@ -252,15 +253,15 @@ mapped_subjects AS (
         sm.education_category,
         sm.subject_area,
         sm.sub_field
-    FROM intermediate.student_education se
+    FROM raw.student_education se
     JOIN LATERAL unnest(se.subject_id) AS unnested_subject(subject_id) ON TRUE
-    JOIN intermediate.subject_mapping sm
+    JOIN raw.subject_mapping sm
         ON unnested_subject.subject_id = sm.id
-    JOIN intermediate.course_mapping cm
+    JOIN raw.course_mapping cm
         ON se.education_course_id = cm.course_id
-    LEFT JOIN intermediate.college_mapping colm
+    LEFT JOIN raw.college_mapping colm
         ON se.college_id = colm.college_id
-    LEFT JOIN intermediate.university_mapping um
+    LEFT JOIN raw.university_mapping um
         ON se.university_id = um.university_id
 ),
 aggregated_subjects AS (
@@ -282,7 +283,7 @@ non_aggregated AS (
         university_name
     FROM mapped_subjects
 )
-INSERT INTO final.final_quiz (
+INSERT INTO intermediate.final_quiz (
     id,
     resource_id,
     student_id,
@@ -326,7 +327,7 @@ SELECT
     na.college_name,
     na.university_name
 FROM student_quiz ss
-LEFT JOIN intermediate.location_mapping lm
+LEFT JOIN raw.location_mapping lm
     ON ss.location_id = lm.location_id
 LEFT JOIN student_registration sr
     ON ss.student_id = sr.student_id
@@ -374,18 +375,18 @@ WITH student_assignment AS (
         gs.title,
         gis."Incubator_Batch",
         sds.location_id
-    FROM intermediate.student_assignment sd
-    JOIN intermediate.resource gs
+    FROM raw.student_assignment sd
+    JOIN raw.resource gs
         ON sd.resource_id = gs.id
-    JOIN intermediate.student_details sds
+    JOIN raw.student_details sds
         ON sd.student_id = sds.id                           
-    JOIN raw.general_information_sheet gis
+    JOIN old.general_information_sheet gis
         ON sds.email = gis."Email"
     
 ),
 student_registration AS (
     SELECT student_id, form_details
-    FROM intermediate.student_registration_details
+    FROM raw.student_registration_details_2
 ),
 mapped_subjects AS (
     SELECT 
@@ -397,15 +398,15 @@ mapped_subjects AS (
         sm.education_category,
         sm.subject_area,
         sm.sub_field
-    FROM intermediate.student_education se
+    FROM raw.student_education se
     JOIN LATERAL unnest(se.subject_id) AS unnested_subject(subject_id) ON TRUE
-    JOIN intermediate.subject_mapping sm
+    JOIN raw.subject_mapping sm
         ON unnested_subject.subject_id = sm.id
-    JOIN intermediate.course_mapping cm
+    JOIN raw.course_mapping cm
         ON se.education_course_id = cm.course_id
-    LEFT JOIN intermediate.college_mapping colm
+    LEFT JOIN raw.college_mapping colm
         ON se.college_id = colm.college_id
-    LEFT JOIN intermediate.university_mapping um
+    LEFT JOIN raw.university_mapping um
         ON se.university_id = um.university_id
 ),
 aggregated_subjects AS (
@@ -427,7 +428,7 @@ non_aggregated AS (
         university_name
     FROM mapped_subjects
 )
-INSERT INTO final.final_assignment (
+INSERT INTO intermediate.final_assignment (
     student_id,
     "Incubator_Batch",
     resource_id,
@@ -469,7 +470,7 @@ SELECT
     na.college_name,
     na.university_name
 FROM student_assignment ss
-LEFT JOIN intermediate.location_mapping lm
+LEFT JOIN raw.location_mapping lm
     ON ss.location_id = lm.location_id
 LEFT JOIN student_registration sr
     ON ss.student_id = sr.student_id
@@ -505,7 +506,7 @@ DO UPDATE SET
 attendance_upsert_query = text("""
 WITH cohort_range AS (
     SELECT start_date, end_date
-    FROM intermediate.cohort
+    FROM raw.cohort
     WHERE cohort_code = 'INC007'
 ),
 
@@ -515,7 +516,7 @@ live_sessions AS (
         ls.session_name,
         ls.code,
         ls.conducted_on::date AS conducted_on
-    FROM intermediate.live_session ls
+    FROM raw.live_session ls
     JOIN cohort_range cr
         ON ls.conducted_on::date BETWEEN cr.start_date AND cr.end_date
 ),
@@ -531,12 +532,12 @@ student_attendance AS (
         ls.conducted_on,
         sd.duration_in_sec,
         COALESCE(sd.watched_on::date, ls.conducted_on) AS attended_on
-    FROM intermediate.student_session sd
+    FROM raw.student_session sd
     JOIN live_sessions ls
         ON sd.session_id = ls.id
-    JOIN intermediate.student_details sdet
+    JOIN raw.student_details sdet
         ON sd.student_id = sdet.id
-    JOIN raw.general_information_sheet gis
+    JOIN old.general_information_sheet gis
         ON sdet.email = gis."Email"
 ),
 
@@ -544,7 +545,7 @@ student_registration AS (
     SELECT
         student_id,
         form_details
-    FROM intermediate.student_registration_details
+    FROM raw.student_registration_details_2
 ),
 
 mapped_subjects AS (
@@ -557,15 +558,15 @@ mapped_subjects AS (
         sm.education_category,
         sm.subject_area,
         sm.sub_field
-    FROM intermediate.student_education se
+    FROM raw.student_education se
     JOIN LATERAL unnest(se.subject_id) AS unnested_subject(subject_id) ON TRUE
-    JOIN intermediate.subject_mapping sm
+    JOIN raw.subject_mapping sm
         ON unnested_subject.subject_id = sm.id
-    JOIN intermediate.course_mapping cm
+    JOIN raw.course_mapping cm
         ON se.education_course_id = cm.course_id
-    LEFT JOIN intermediate.college_mapping colm
+    LEFT JOIN raw.college_mapping colm
         ON se.college_id = colm.college_id
-    LEFT JOIN intermediate.university_mapping um
+    LEFT JOIN raw.university_mapping um
         ON se.university_id = um.university_id
 ),
 
@@ -590,7 +591,7 @@ non_aggregated AS (
     FROM mapped_subjects
 )
 
-INSERT INTO final.daily_weekly_attendance (
+INSERT INTO intermediate.daily_weekly_attendance (
     weekday_name,
     student_id,
     session_id,
@@ -634,7 +635,7 @@ SELECT
     na.college_name,
     na.university_name
 FROM student_attendance sa
-LEFT JOIN intermediate.location_mapping lm
+LEFT JOIN raw.location_mapping lm
     ON sa.location_id = lm.location_id
 LEFT JOIN student_registration sr
     ON sa.student_id = sr.student_id
@@ -673,36 +674,36 @@ if __name__ == "__main__":
 
     with engine.begin() as conn:
         try:
-            prepare_table_for_upsert("final.final_quiz", ["student_id", "resource_id"], "duplicate_final_quiz.csv")
+            prepare_table_for_upsert("intermediate.final_quiz", ["student_id", "resource_id"], "duplicate_final_quiz.csv")
             quiz_result = conn.execute(quiz_upsert_query)
-            print("* Data upserted to 'final.final_quiz'.")
+            print("* Data upserted to 'intermediate.final_quiz'.")
             print(f"   - Rows inserted/updated: {quiz_result.rowcount}")
         except Exception as e:
-            print(f"! Failed to upsert into 'final.final_quiz': {e}")
+            print(f"! Failed to upsert into 'intermediate.final_quiz': {e}")
 
         try:
-            prepare_table_for_upsert("final.student_demography", ["email"], "duplicate_final_student_demography.csv")
+            prepare_table_for_upsert("intermediate.student_demography", ["email"], "duplicate_final_student_demography.csv")
             demography_result = conn.execute(student_demography_upsert_query)
-            print("* Data upserted to 'final.student_demography'.")
+            print("* Data upserted to 'intermediate.student_demography'.")
             print(f"   - Rows inserted/updated: {demography_result.rowcount}")
         except Exception as e:
-            print(f"! Failed to upsert into 'final.student_demography': {e}")
+            print(f"! Failed to upsert into 'intermediate.student_demography': {e}")
 
         try:
-            prepare_table_for_upsert("final.final_assignment", ["student_id", "resource_id", "submitted_at"], "duplicate_final_assignment.csv")
+            prepare_table_for_upsert("intermediate.final_assignment", ["student_id", "resource_id", "submitted_at"], "duplicate_final_assignment.csv")
             assign_result = conn.execute(assignment_upsert_query)
-            print("* Data upserted to 'final.final_assignment'.")
+            print("* Data upserted to 'intermediate.final_assignment'.")
             print(f"   - Rows inserted/updated: {assign_result.rowcount}")
         except Exception as e:
-            print(f"! Failed to upsert into 'final.final_assignment': {e}")
+            print(f"! Failed to upsert into 'intermediate.final_assignment': {e}")
 
         try:
-            prepare_table_for_upsert("final.daily_weekly_attendance",["student_id", "session_id"],"duplicate_daily_weekly_student_attendance.csv")
+            prepare_table_for_upsert("intermediate.daily_weekly_attendance",["student_id", "session_id"],"duplicate_daily_weekly_student_attendance.csv")
             attendance_result = conn.execute(attendance_upsert_query)
-            print("* Data upserted to 'final.daily_weekly_attendance'.")
+            print("* Data upserted to 'intermediate.daily_weekly_attendance'.")
             print(f"   - Rows inserted/updated: {attendance_result.rowcount}")
         except Exception as e:
-            print(f"! Failed to upsert into 'final.daily_weekly_attendance': {e}")
+            print(f"! Failed to upsert into 'intermediate.daily_weekly_attendance': {e}")
 
 
 
@@ -710,15 +711,15 @@ if __name__ == "__main__":
     with engine.begin() as conn:
         # Quiz upsert
         quiz_result = conn.execute(quiz_upsert_query)
-        print("* Data upserted to 'final.final_quiz'.")
+        print("* Data upserted to 'intermediate.final_quiz'.")
         print(f"   - Rows inserted/updated: {quiz_result.rowcount}")
 
         # Assignment upsert
         assign_result = conn.execute(assignment_upsert_query)
-        print("* Data upserted to 'final.final_assignment'.")
+        print("* Data upserted to 'intermediate.final_assignment'.")
         print(f"   - Rows inserted/updated: {assign_result.rowcount}")
 
         # Attendance upsert
         attendance_result = conn.execute(attendance_upsert_query)
-        print("* Data upserted to 'final.daily_weekly_attendance'.")
+        print("* Data upserted to 'intermediate.daily_weekly_attendance'.")
         print(f"   - Rows inserted/updated: {attendance_result.rowcount}")'''
