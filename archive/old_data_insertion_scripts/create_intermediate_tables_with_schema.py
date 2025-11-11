@@ -6,7 +6,7 @@ from sqlalchemy import text
 from deployment_scripts.connection import get_engine, get_session, metadata
 
 #Shema
-TARGET_SCHEMA = "final"
+TARGET_SCHEMA = "final"   # in the recent script the schema has been renamed from final to intermediate and the futher schema changes has been made to the upsertion scripts.
 
 
 # Set to True to drop existing tables before creating
