@@ -1,31 +1,15 @@
 import os
 import textwrap
 from sqlalchemy import create_engine, text
-from dotenv import load_dotenv
-
-# Load .env file
-load_dotenv("config.env")
-
-DB_USER = os.getenv("DB_USER")
-DB_PASS = os.getenv("DB_PASSWORD")
-DB_HOST = os.getenv("DB_HOST", "localhost")
-DB_PORT = os.getenv("DB_PORT", "5432")
-DB_NAME = os.getenv("DB_NAME")
-
-if not all([DB_USER, DB_PASS, DB_HOST, DB_NAME]):
-    raise SystemExit("Missing DB credentials in config.env. Please set DB_USER, DB_PASSWORD, DB_HOST, DB_NAME.")
+from deployment_scripts.connection import get_engine, get_session, metadata
 
 #Shema
 TARGET_SCHEMA = "final"
 
-
 # Set to True to drop existing tables before creating
 DROP_IF_EXISTS = False
 
-engine = create_engine(
-    f"postgresql+psycopg2://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}",
-    pool_pre_ping=True,
-)
+engine = get_engine()
 
 # Helper to prefix CREATE TABLE with schema and table name
 def wrap_create(schema: str, table: str, body_sql: str) -> str:
@@ -34,444 +18,128 @@ def wrap_create(schema: str, table: str, body_sql: str) -> str:
     return header + body_sql.lstrip()
 
 # ---- Body SQLs (without the CREATE TABLE ... AS line) ----
-student_demography_body = textwrap.dedent("""
-WITH student_details AS (
-    SELECT
+resubmission_count_overview_body = textwrap.dedent("""
+WITH submission_counts AS (
+  SELECT
+    student_id,
+    resource_id,
+    title,
+    cohort_code,
+	college_name,
+    COUNT(*) FILTER (WHERE submission_status = 'under review') AS under_review_count,
+    COUNT(*) FILTER (WHERE submission_status = 'reviewed') AS accepted_count,
+    COUNT(*) FILTER (WHERE submission_status = 'rejected') AS rejected_count,
+    MAX(submitted_at) FILTER (WHERE submission_status = 'under review') AS last_submission_date
+  FROM
+    "intermediate"."final_assignment"
+  GROUP BY
+    student_id,
+    resource_id,
+    title,
+    course_name,
+    cohort_code,
+	college_name
+)
+SELECT
+  sc.student_id,
+  (
+    SELECT sd.email
+    FROM "raw"."student_details" sd
+    WHERE sd.id = sc.student_id
+    LIMIT 1
+  ) AS email_id,
+  sc.resource_id,
+  sc.title,
+  sc.cohort_code,
+  sc.college_name,
+  sc.under_review_count AS total_submissions,
+  CASE
+    WHEN sc.under_review_count > 1 THEN sc.under_review_count - 1
+    ELSE 0
+  END AS resubmissions_count,
+  CASE 
+    WHEN sc.under_review_count > 1 
+      THEN ROUND(((sc.under_review_count - 1)::numeric / sc.under_review_count) * 100, 2)
+    ELSE 0 
+  END AS resubmission_rate,
+  sc.accepted_count,
+  ROUND((sc.accepted_count::numeric / NULLIF(sc.under_review_count, 0)) * 100, 2) AS acceptance_rate,
+  sc.rejected_count,
+  ROUND((sc.rejected_count::numeric / NULLIF(sc.under_review_count, 0)) * 100, 2) AS rejection_rate,
+  sc.last_submission_date
+FROM submission_counts sc
+ORDER BY sc.student_id, sc.resource_id;
+""")
+
+student_registration_overview_body = textwrap.dedent("""
+WITH student_demography AS (
+    SELECT 
+        student_id,
+        email,
+        caste,
+        annual_family_income_inr,
+        "Incubator_Batch",
+        state_union_territory,
+        district,
+        country,
+        city_category,
+        form_details,
+        education_category,
+        subject_areas,
+        sub_fields_list,
+        course_name,
+        college_name,
+        university_name
+    FROM intermediate.student_demography
+),
+
+student_registration_details AS (
+    SELECT 
+        srd.id,
+        srd.student_id,
+        srd.assigned_through,
+        srd.registration_date::TIMESTAMP AS registration_date
+    FROM raw.student_registration_details srd
+),
+
+student_details AS (
+    SELECT 
         sd.id,
         sd.email,
-        sd.caste,
-        sd.annual_family_income_inr,
-        sd.location_id,
-        gs."Incubator_Batch"
-    FROM intermediate.student_details sd
-    LEFT JOIN raw.general_information_sheet gs
-        ON sd.id = gs."Student_id"
-),
-student_registration AS (
-    SELECT
-        student_id,
-        form_details
-    FROM intermediate.student_registration_details
-),
-mapped_subjects AS (
-    SELECT 
-        se.student_id,
-        se.education_course_id,
-        cm.course_name,
-        colm.standard_college_names AS college_name,
-        um.standard_university_names AS university_name,
-        sm.education_category,
-        sm.subject_area,
-        sm.sub_field
-    FROM intermediate.student_education se
-    JOIN LATERAL unnest(se.subject_id) AS unnested_subject(subject_id) ON TRUE
-    JOIN intermediate.subject_mapping sm
-        ON unnested_subject.subject_id = sm.id
-    JOIN intermediate.course_mapping cm
-        ON se.education_course_id = cm.course_id
-    LEFT JOIN intermediate.college_mapping colm
-        ON se.college_id = colm.college_id
-    LEFT JOIN intermediate.university_mapping um
-        ON se.university_id = um.university_id
-),
-aggregated_subjects AS (
-    SELECT
-        student_id,
-        education_course_id,
-        string_agg(DISTINCT education_category, ', ') AS education_category,
-        string_agg(DISTINCT subject_area, ', ') AS subject_areas,
-        string_agg(DISTINCT sub_field, ', ') AS sub_fields_list
-    FROM mapped_subjects
-    GROUP BY student_id, education_course_id
-),
-non_aggregated AS (
-    SELECT DISTINCT
-        student_id,
-        education_course_id,
-        course_name,
-        college_name,
-        university_name
-    FROM mapped_subjects
-)
-SELECT
-    sd.id AS student_id,
-    sd.email,
-    sd.caste,
-    sd.annual_family_income_inr,
-    sd."Incubator_Batch",
-    lm.state_union_territory,
-    lm.district,
-    lm.country,
-    lm.city_category,
-    sr.form_details,
-    asub.education_category,
-    asub.subject_areas,
-    asub.sub_fields_list,
-    na.course_name,
-    na.college_name,
-    na.university_name
-FROM student_details sd
-LEFT JOIN intermediate.location_mapping lm
-    ON sd.location_id = lm.location_id
-LEFT JOIN student_registration sr
-    ON sd.id = sr.student_id
-LEFT JOIN aggregated_subjects asub
-    ON sd.id = asub.student_id
-LEFT JOIN non_aggregated na
-    ON sd.id = na.student_id
-    AND asub.education_course_id = na.education_course_id;
-""")
-
-student_attendance_body = textwrap.dedent("""
-WITH cohort_range AS (
-    SELECT start_date, end_date
-    FROM intermediate.cohort
-	--WHERE cohort_code = 'INC007'
-),
-
-live_sessions AS (
-    SELECT 
-        ls.id,
-        ls.session_name,
-        ls.code,
-        ls.conducted_on::date AS conducted_on
-    FROM intermediate.live_session ls
-    JOIN cohort_range cr
-        ON ls.conducted_on::date BETWEEN cr.start_date AND cr.end_date
-),
-
-student_attendance AS (
-    SELECT 
-        sd.student_id,
-        gis."Incubator_Batch" AS incubator_batch,
-        sdet.location_id,
-        ls.id AS session_id,
-        ls.session_name AS title,
-        ls.code,
-        ls.conducted_on,
-        sd.duration_in_sec,
-        --sd.education_course_id,
-        COALESCE(sd.watched_on::date, ls.conducted_on) AS attended_on
-    FROM intermediate.student_session sd
-    JOIN live_sessions ls
-        ON sd.session_id = ls.id
-    JOIN intermediate.student_details sdet
-        ON sd.student_id = sdet.id
-    JOIN raw.general_information_sheet gis
-        ON sdet.email = gis."Email"
-),
-
-student_registration AS (
-    SELECT
-        student_id,
-        form_details
-    FROM intermediate.student_registration_details
-),
-
-mapped_subjects AS (
-    SELECT 
-        se.student_id,
-        se.education_course_id,
-        cm.course_name,
-        colm.standard_college_names AS college_name,
-        um.standard_university_names AS university_name,
-        sm.education_category,
-        sm.subject_area,
-        sm.sub_field
-    FROM intermediate.student_education se
-    JOIN LATERAL unnest(se.subject_id) AS unnested_subject(subject_id) ON TRUE
-    JOIN intermediate.subject_mapping sm
-        ON unnested_subject.subject_id = sm.id
-    JOIN intermediate.course_mapping cm
-        ON se.education_course_id = cm.course_id
-    LEFT JOIN intermediate.college_mapping colm
-        ON se.college_id = colm.college_id
-    LEFT JOIN intermediate.university_mapping um
-        ON se.university_id = um.university_id
-),
-
-aggregated_subjects AS (
-    SELECT
-        student_id,
-        education_course_id,
-        string_agg(DISTINCT education_category, ', ') AS education_category,
-        string_agg(DISTINCT subject_area, ', ') AS subject_areas,
-        string_agg(DISTINCT sub_field, ', ') AS sub_fields_list
-    FROM mapped_subjects
-    GROUP BY student_id, education_course_id
-),
-
-non_aggregated AS (
-    SELECT DISTINCT
-        student_id,
-        education_course_id,
-        course_name,
-        college_name,
-        university_name
-    FROM mapped_subjects
+        sd.phone
+    FROM raw.student_details sd
 )
 
 SELECT
-	TRIM(TO_CHAR(sa.attended_on, 'Day')) AS weekday_name,
-    sa.student_id,
-    sa.incubator_batch,
-    sa.session_id,
-    sa.title,
-    sa.code,
-    sa.conducted_on,
-    sa.attended_on,
-    sa.duration_in_sec,
-    sr.form_details,
-    lm.state_union_territory,
-    lm.district,
-    lm.country,
-    lm.city_category,
-    asub.education_category,
-    asub.subject_areas,
-    asub.sub_fields_list,
-    na.course_name,
-    na.college_name,
-    na.university_name
-FROM student_attendance sa
-LEFT JOIN intermediate.location_mapping lm
-    ON sa.location_id = lm.location_id
-LEFT JOIN student_registration sr
-    ON sa.student_id = sr.student_id
-LEFT JOIN aggregated_subjects asub
-    ON sa.student_id = asub.student_id
-LEFT JOIN non_aggregated na
-    ON sa.student_id = na.student_id
-    AND asub.education_course_id = na.education_course_id
---ORDER BY sa.conducted_on, sa.title;
-
-""")
-
-student_assignment_body = textwrap.dedent("""
-WITH student_assignment AS (
-    SELECT
-        sd.id,
-        sd.student_id,
-        sd.cohort_code,
-		sd.submitted_at,
-		sd.resource_id AS student_resource_id,
-		sd.submission_status,
-        gs.id AS resource_id,
-        gs.category,
-        gs.title,
-        gis."Incubator_Batch",
-        sds.location_id
-    FROM intermediate.student_assignment sd
-    JOIN intermediate.resource gs
-        ON sd.resource_id = gs.id
-    JOIN intermediate.student_details sds
-        ON sd.student_id = sds.id
-    JOIN raw.general_information_sheet gis
-        ON sds.email = gis."Email"
-                                          
-),
-
-student_registration AS (
-    SELECT
-        student_id,
-        form_details
-    FROM intermediate.student_registration_details
-),
-
--- Step 1: Unnest subject_id array and join to mapping tables from DB
-mapped_subjects AS (
-    SELECT 
-        se.student_id,
-        se.education_course_id,
-        cm.course_name,
-        colm.standard_college_names AS college_name,
-        um.standard_university_names AS university_name,
-        sm.education_category,
-        sm.subject_area,
-        sm.sub_field
-    FROM intermediate.student_education se
-    JOIN LATERAL unnest(se.subject_id) AS unnested_subject(subject_id) ON TRUE
-    JOIN intermediate.subject_mapping sm
-        ON unnested_subject.subject_id = sm.id
-    JOIN intermediate.course_mapping cm
-        ON se.education_course_id = cm.course_id
-    LEFT JOIN intermediate.college_mapping colm
-        ON se.college_id = colm.college_id
-    LEFT JOIN intermediate.university_mapping um
-        ON se.university_id = um.university_id
-),
-
--- Step 2: Aggregate only the subject-related fields
-aggregated_subjects AS (
-    SELECT
-        student_id,
-        education_course_id,
-        string_agg(DISTINCT education_category, ', ') AS education_category,
-        string_agg(DISTINCT subject_area, ', ') AS subject_areas,
-        string_agg(DISTINCT sub_field, ', ') AS sub_fields_list
-    FROM mapped_subjects
-    GROUP BY student_id, education_course_id
-),
-
--- Step 3: Non-aggregated fields (1:1 with student/course)
-non_aggregated AS (
-    SELECT DISTINCT
-        student_id,
-        education_course_id,
-        course_name,
-        college_name,
-        university_name
-    FROM mapped_subjects
-)
-
--- Step 4: Final join
-SELECT
-    ss.student_id,
-    ss."Incubator_Batch",
-    ss.student_resource_id AS resource_id,
-    ss.category,
-    ss.title,
-    ss.cohort_code,
-    ss.submission_status,
-	ss.submitted_at,
-    sr.form_details,
-    lm.state_union_territory,
-    lm.district,
-    lm.country,
-    lm.city_category,
-    asub.education_category,
-    asub.subject_areas,
-    asub.sub_fields_list,
-    na.course_name,
-    na.college_name,
-    na.university_name
-FROM student_assignment ss
-LEFT JOIN intermediate.location_mapping lm
-    ON ss.location_id = lm.location_id
-LEFT JOIN student_registration sr
-    ON ss.student_id = sr.student_id
-LEFT JOIN aggregated_subjects asub
-    ON ss.student_id = asub.student_id
-LEFT JOIN non_aggregated na
-    ON ss.student_id = na.student_id
-    AND asub.education_course_id = na.education_course_id;
-""")
-
-student_quiz_body = textwrap.dedent("""
-WITH student_quiz AS (
-    SELECT
-        sd.id,
-        sd.student_id,
-        sd.cohort_code,
-		sd.resource_id AS student_resource_id,
-		sd.marks,
-		sd.max_marks,
-        gs.id AS resource_id,
-        gs.category,
-        gs.title,
-        gis."Incubator_Batch",
-        sds.location_id
-    FROM intermediate.student_quiz sd
-    JOIN intermediate.resource gs
-        ON sd.resource_id = gs.id
-    JOIN intermediate.student_details sds
-        ON sd.student_id = sds.id
-    JOIN raw.general_information_sheet gis
-        ON sds.email = gis."Email"
-),
-
-student_registration AS (
-    SELECT
-        student_id,
-        form_details
-    FROM intermediate.student_registration_details
-),
-
---Unnest subject_id array and join to mapping tables from DB
-mapped_subjects AS (
-    SELECT 
-        se.student_id,
-        se.education_course_id,
-        cm.course_name,
-        colm.standard_college_names AS college_name,
-        um.standard_university_names AS university_name,
-        sm.education_category,
-        sm.subject_area,
-        sm.sub_field
-    FROM intermediate.student_education se
-    JOIN LATERAL unnest(se.subject_id) AS unnested_subject(subject_id) ON TRUE
-    JOIN intermediate.subject_mapping sm
-        ON unnested_subject.subject_id = sm.id
-    JOIN intermediate.course_mapping cm
-        ON se.education_course_id = cm.course_id
-    LEFT JOIN intermediate.college_mapping colm
-        ON se.college_id = colm.college_id
-    LEFT JOIN intermediate.university_mapping um
-        ON se.university_id = um.university_id
-),
-
--- Aggregate only the subject-related fields
-aggregated_subjects AS (
-    SELECT
-        student_id,
-        education_course_id,
-        string_agg(DISTINCT education_category, ', ') AS education_category,
-        string_agg(DISTINCT subject_area, ', ') AS subject_areas,
-        string_agg(DISTINCT sub_field, ', ') AS sub_fields_list
-    FROM mapped_subjects
-    GROUP BY student_id, education_course_id
-),
-
--- Non-aggregated fields (1:1 with student/course)
-non_aggregated AS (
-    SELECT DISTINCT
-        student_id,
-        education_course_id,
-        course_name,
-        college_name,
-        university_name
-    FROM mapped_subjects
-)
-
--- Final join
-SELECT
-    ss.student_id,
-    ss."Incubator_Batch",
-    ss.id,
-	ss.student_resource_id AS resource_id,
-    ss.category,
-    ss.title,
-    ss.cohort_code,
-    ss.marks,
-	ss.max_marks,
-    sr.form_details,
-    lm.state_union_territory,
-    lm.district,
-    lm.country,
-    lm.city_category,
-    asub.education_category,
-    asub.subject_areas,
-    asub.sub_fields_list,
-    na.course_name,
-    na.college_name,
-    na.university_name
-FROM student_quiz ss
-LEFT JOIN intermediate.location_mapping lm
-    ON ss.location_id = lm.location_id
-LEFT JOIN student_registration sr
-    ON ss.student_id = sr.student_id
-LEFT JOIN aggregated_subjects asub
-    ON ss.student_id = asub.student_id
-LEFT JOIN non_aggregated na
-    ON ss.student_id = na.student_id
-    AND asub.education_course_id = na.education_course_id;
+    sdm.student_id,
+    sdm.email,
+    sd.phone,
+    sdm.caste,
+    sdm.annual_family_income_inr,
+    sdm."Incubator_Batch",
+    sdm.state_union_territory,
+    sdm.district,
+    sdm.country,
+    sdm.city_category,
+    sdm.form_details,
+    sdm.education_category,
+    sdm.subject_areas,
+    sdm.sub_fields_list,
+    sdm.course_name,
+    sdm.college_name,
+    sdm.university_name,
+    srd.registration_date
+FROM student_demography sdm
+INNER JOIN student_details sd
+    ON sdm.student_id = sd.id
+INNER JOIN student_registration_details srd
+    ON sd.id = srd.student_id;
 """)
 
 # Map desired final table names
 table_map = [
-    ("student_demography", student_demography_body),
-    ("daily_weekly_attendance", student_attendance_body),
-    ("final_assignment", student_assignment_body),
-    ("final_quiz", student_quiz_body),
+    ("resubmission_count_overview", resubmission_count_overview_body),
+    ("student_registration_overview", student_registration_overview_body)
 ]
 
 def save_sql_file(schema: str, table: str, sql_text: str):
@@ -507,7 +175,21 @@ def run():
                 print(f"Created {TARGET_SCHEMA}.{table_name} successfully.")
             except Exception as e:
                 print(f"Error creating {TARGET_SCHEMA}.{table_name}: {e}")
-                # continue to next table
+
+        conn.execute(text(f"""
+            ALTER TABLE {TARGET_SCHEMA}.resubmission_count_overview
+            ADD CONSTRAINT resubmission_count_overview_unique
+            UNIQUE (student_id, resource_id, last_submission_date);
+        """))
+
+        conn.execute(text(f"""
+            ALTER TABLE {TARGET_SCHEMA}.student_registration_overview
+            ADD CONSTRAINT student_registration_overview_unique
+            UNIQUE (student_id, registration_date);
+        """))
+
+        print("Unique constraints added successfully.")
+    
     print("\nAll operations completed.")
 
 if __name__ == "__main__":

@@ -1,24 +1,21 @@
 import pandas as pd
-from sqlalchemy import create_engine
-from dotenv import load_dotenv
+from sqlalchemy import text
 import os
+import sys
 
 # Load environment variables
 
-load_dotenv('config.env')
+connection_dir = r"C:\Users\vigya\OneDrive - VigyanShaala\Desktop\add_connection_file\deployment_scripts"
+if connection_dir not in sys.path:
+    sys.path.append(connection_dir)
 
-DB_USER = os.getenv("DB_USER")
-DB_PASSWORD = os.getenv("DB_PASSWORD")
-DB_HOST = os.getenv("DB_HOST")
-DB_PORT = os.getenv("DB_PORT", "5432")
-DB_NAME = os.getenv("DB_NAME")
+from connection import get_engine
+
 TABLE_NAME = "raw.general_information_sheet"  # Change this to your target table
 
 
 # Database connection
-engine = create_engine(
-    f"postgresql+psycopg2://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
-)
+engine = get_engine()
 
 # CSV to PostgreSQL in chunks
 

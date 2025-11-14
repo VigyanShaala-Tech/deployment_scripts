@@ -39,7 +39,8 @@ DB_PORT='my_db_port'
 # Repository Structure:
 
 ├── **bug_fixing_on_production/**  
-   └── README.md  
+   └── README.md
+   └── __init__.py
    └── Fix_district_state_empty_value.py  
    └── INC7_upcoming_incubators_monitoring_data_insertion.py  
    └── assign_missing_ids.py  
@@ -50,7 +51,8 @@ DB_PORT='my_db_port'
    └── sql_update_script.py  
     
 ├── **database_and_schema_manipulation_script/**  
-   └── README.md  
+   └── README.md
+   └── __init__.py  
    └── Add_data_to_new_column.py  
    └── add_column.py  
    └── alter_table_and_create_enum.py  
@@ -60,27 +62,44 @@ DB_PORT='my_db_port'
    └── create_raw_intermediate_indexes.py  
     
 ├── **insert_user_registration/**  
-   └── README.md  
+   └── README.md
+   └── __init__.py  
    └── insert_new_data.py  
     
 ├── **monitoring_data_pipeline/**  
-   └── README.md  
-   └── post_cohort_repeatative_script  
+   └── README.md
+   └── __init__.py  
+   └── post_cohort_repeatative_script
+      └── __init__.py  
       └── monitoring_data_raw_schema_tables_update_script.py  
       └── raw_schema_to_intermediate_upsert_script.py  
       └── upsertion_intermediate_to_final.py  
-   └── pre_cohort_non_repeatative_script  
+   └── pre_cohort_non_repeatative_script 
+      └── __init__.py 
       └── Add_new_cohorts_names_for_upcoming_cohort.py  
       └── Update_incubator_name_based_on_email.py  
     
 ├── **old_data_insertion_scripts/**  
    └── README.md  
+   └── __init__.py
    └── data_insertion_script.py  
    └── table_creation.py  
    └── load_csvs_to_db.py  
    └── update_clean_data.py  
    └── update_course_name_INC_7_script.py  
    └── update_script_location_id.py  
-    
-├── config.env  
+
+└── __init__.py    
+├── config.env
+├── connection.py  
 └── README.md   ← (this file)
+└── requirements.txt
+
+# Command to run script:
+
+Run all scripts from the project root i.e deployment_scripts using module syntax:
+
+**python -m deployment_scripts.<subfolder>.<script_name_without_py>**
+
+eg: for scripts inside subfolder - bug_fixing_on_production:
+**python -m deployment_scripts.bug_fixing_on_production.<script_name_without_py>**
