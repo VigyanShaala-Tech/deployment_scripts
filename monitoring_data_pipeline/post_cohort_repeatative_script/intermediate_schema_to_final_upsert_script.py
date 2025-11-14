@@ -113,11 +113,11 @@ INSERT INTO final.resubmission_count_overview (
     college_name,
     total_submissions,
     resubmissions_count,
-    accepted_count,
-    rejected_count,
     resubmission_rate,
+    accepted_count,
     acceptance_rate,
-    rejection_rate,                                                                                                              
+    rejected_count,
+    rejection_rate,                                                                                                             
     last_submission_date
 )
 SELECT
@@ -253,7 +253,8 @@ DO UPDATE SET
     sub_fields_list = EXCLUDED.sub_fields_list,
     course_name = EXCLUDED.course_name,
     college_name = EXCLUDED.college_name,
-    university_name = EXCLUDED.university_name;
+    university_name = EXCLUDED.university_name,
+    registration_date = EXCLUDED.registration_date;
 """)
 
 with engine.begin() as conn:
