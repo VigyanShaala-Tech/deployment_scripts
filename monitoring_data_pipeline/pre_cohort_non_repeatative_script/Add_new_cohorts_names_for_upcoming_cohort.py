@@ -1,26 +1,11 @@
 import os
-from sqlalchemy import create_engine, text
-from dotenv import load_dotenv
+import sys
+from sqlalchemy import text
 
-# Load environment variables
-def load_env(file_path):
-    load_dotenv(file_path)
-    return {
-        'HOST': os.getenv("DB_HOST"),
-        'DB_NAME': os.getenv("DB_NAME"),
-        'USER': os.getenv("DB_USER"),
-        'PASSWORD': os.getenv("DB_PASSWORD"),
-        'PORT': os.getenv("DB_PORT")
-    }
-
-def loading_engine(config):
-    return create_engine(
-        f"postgresql+psycopg2://{config['USER']}:{config['PASSWORD']}@{config['HOST']}:{config['PORT']}/{config['DB_NAME']}"
-    )
+from deployment_scripts.connection import get_engine, get_session, metadata
 
 def insert_multiple_columns():
-    config = load_env("config.env")
-    engine = loading_engine(config)
+    engine = get_engine()
 
     table_name = input("Enter the table name: ").strip()
     id_col = input("Enter the ID column name: ").strip()

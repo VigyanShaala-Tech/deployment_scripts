@@ -1,19 +1,12 @@
 import os
-from sqlalchemy import create_engine, text
-from dotenv import load_dotenv
+import sys
+from sqlalchemy import text
 
-# Load environment variables from config.env
-load_dotenv("config.env")
 
-# Database connection info
-user = os.getenv("DB_USER")
-password = os.getenv("DB_PASSWORD")
-host = os.getenv("DB_HOST")
-port = os.getenv("DB_PORT")
-dbname = os.getenv("DB_NAME")
+from deployment_scripts.connection import get_engine, get_session, metadata
 
 # Connect to database
-engine = create_engine(f"postgresql+psycopg2://{user}:{password}@{host}:{port}/{dbname}")
+engine = get_engine()
 
 # Inputs
 table = input("Enter table name (e.g., schema.table): ").strip()
