@@ -150,12 +150,12 @@ DO UPDATE SET
     college_name = EXCLUDED.college_name,
     total_submissions = EXCLUDED.total_submissions,
     resubmissions_count = EXCLUDED.resubmissions_count,
+    resubmission_rate = EXCLUDED.resubmission_rate,                                                                                                              
     accepted_count = EXCLUDED.accepted_count,
+    acceptance_rate = EXCLUDED.acceptance_rate,                                                       
     rejected_count = EXCLUDED.rejected_count,
-    resubmission_rate = EXCLUDED.resubmission_rate,
-    acceptance_rate = EXCLUDED.acceptance_rate,
     rejection_rate = EXCLUDED.rejection_rate,                                                                                                              
-    last_submission_date = EXCLUDED.last_submission_date;                                                                                                          
+    last_submission_date = EXCLUDED.last_submission_date;                                                                                                                                                                 
 """)
 
 student_registration_overview_upsert_query = textwrap.dedent("""
