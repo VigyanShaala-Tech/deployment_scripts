@@ -40,19 +40,6 @@ def prepare_table_for_upsert(table_name, unique_columns, csv_filename):
         print(f"* Duplicates cleaned from {table_name}.")
 
 
-    # Step 3: Add unique constraint
-    constraint_name = f"uq_{table_name.replace('.', '_')}"
-    add_constraint_query = f"""
-    ALTER TABLE {table_name}
-    ADD CONSTRAINT {constraint_name} UNIQUE ({', '.join(unique_columns)});
-    """
-    with engine.begin() as conn:
-        try:
-            conn.execute(text(add_constraint_query))
-            print(f"* Unique constraint added on {table_name} ({', '.join(unique_columns)}).")
-        except Exception as e:
-            print(f"* Unique constraint might already exist for {table_name}: {e}")
-
 
 def clean_general_information_sheet():
     dup_query = """
