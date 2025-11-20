@@ -1,6 +1,7 @@
 import pandas as pd
 from sqlalchemy import text
 from deployment_scripts.connection import get_engine
+import sys
 
 engine = get_engine()
 
@@ -36,10 +37,17 @@ def get_existing_constraints():
 # STEP 2: DROP CONSTRAINT
 # ---------------------------------------------------------
 def drop_constraint(constraint_name):
+    choice = input(f"Do you want to drop constraint '{constraint_name}'? (yes/no): ").strip().lower()
+
+    if choice not in ("yes", "y"):
+        print(f"Skipping drop: {constraint_name}")
+        sys.exit("Execution stopped by user.")
+
     query = f"""
     ALTER TABLE {FULL_TABLE}
     DROP CONSTRAINT IF EXISTS {constraint_name} CASCADE;
     """
+
     with engine.begin() as conn:
         conn.execute(text(query))
         print(f"Dropped constraint: {constraint_name}")
