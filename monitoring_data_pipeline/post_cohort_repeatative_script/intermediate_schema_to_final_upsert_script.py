@@ -142,7 +142,7 @@ SELECT
 FROM submission_counts sc
 LEFT JOIN raw.student_details sd
   ON sc.student_id = sd.id
-ON CONFLICT (student_id, resource_id, last_submission_date)
+ON CONFLICT (student_id, resource_id)
 DO UPDATE SET
     email_id = EXCLUDED.email_id,
     title = EXCLUDED.title,
@@ -236,7 +236,7 @@ SELECT
 FROM student_demography sdm
 INNER JOIN student_details sd ON sdm.student_id = sd.id
 INNER JOIN student_registration_details srd ON sd.id = srd.student_id
-ON CONFLICT (student_id, registration_date)
+ON CONFLICT (student_id,email)
 DO UPDATE SET
     email = EXCLUDED.email,
     phone = EXCLUDED.phone,
