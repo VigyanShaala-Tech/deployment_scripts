@@ -51,13 +51,16 @@ student_assignment_query = text("""
                 ELSE 0
             END)::DECIMAL AS marks_pct,
             a.feedback AS feedback_comments,
-            NULLIF(a.submitted_at, 'NaN')::timestamp AS submitted_at,
+            NULLIF(TRIM(a.submitted_at), '')::timestamp AS submitted_at,
             a.assignment_file AS assignment_file
         FROM assignment_data a
         INNER JOIN student_details_data sd ON a.email = sd.email                    
         INNER JOIN raw_general_info_data g ON sd.email = g.email
         INNER JOIN cohort_data c ON g.cohort_name = c.cohort_name 
         INNER JOIN resource_data r ON a.name = r.title
+        WHERE TRIM(a.submitted_at) IS NOT NULL
+            AND TRIM(a.submitted_at) <> ''
+            AND TRIM(a.submitted_at) <> 'NaN'
     )
     INSERT INTO raw.student_assignment (
         student_id, resource_id, mentor_id, cohort_code, submission_status,
