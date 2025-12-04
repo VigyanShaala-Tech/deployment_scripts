@@ -3,7 +3,7 @@ from sqlalchemy import create_engine, text
 from deployment_scripts.connection import get_engine, get_session, metadata
 
 # Set schema name at the top
-schema = "intermediate"
+schema = "raw"
 
 # Create SQLAlchemy engine
 engine = get_engine()
@@ -232,23 +232,37 @@ create_student_assignment_table = text(f"""
     );
 """)
 
+create_cohort_table = text(f"""
+
+    -- Create table with proper foreign keys
+    CREATE TABLE {schema}.student_cohort (
+        student_code VARCHAR(15) PRIMARY KEY,
+        student_id INT,
+        cohort_code VARCHAR(6),
+        is_leader BOOLEAN,
+        cohort_enroll_date DATE,
+        FOREIGN KEY (student_id) REFERENCES {schema}.student_details(id),
+        FOREIGN KEY (cohort_code) REFERENCES {schema}.cohort(cohort_code)
+    );
+""")
 
 # Run the creation script
 try:
     with engine.begin() as conn:  # begin() ensures transaction safety
-        conn.execute(create_student_details_table)
-        conn.execute(create_referral_college_professor_table)
-        conn.execute(create_student_registration_details_table)
-        conn.execute(create_student_education)
-        conn.execute(create_program_table)
+        #conn.execute(create_student_details_table)
+        #conn.execute(create_referral_college_professor_table)
+        #conn.execute(create_student_registration_details_table)
+        #conn.execute(create_student_education)
+        #conn.execute(create_program_table)
+        #conn.execute(create_cohort_table)
+        #conn.execute(create_resource_table)
+        #conn.execute(create_live_session_table)
+        #conn.execute(create_student_session_table)
+        #conn.execute(create_student_pre_recorded_table)
+        #conn.execute(create_student_quiz_table)
+        #conn.execute(create_mentor_details_table)
+        #conn.execute(create_student_assignment_table)
         conn.execute(create_cohort_table)
-        conn.execute(create_resource_table)
-        conn.execute(create_live_session_table)
-        conn.execute(create_student_session_table)
-        conn.execute(create_student_pre_recorded_table)
-        conn.execute(create_student_quiz_table)
-        conn.execute(create_mentor_details_table)
-        conn.execute(create_student_assignment_table)
 
 
         print("✅ table created successfully.")
