@@ -181,6 +181,53 @@ student_quiz_query = text("""
         attempted_at = EXCLUDED.attempted_at;
 """)
 
+student_pre_recorded_query = text("""
+    WITH cohort_data AS (
+        SELECT cohort_code, cohort_name FROM raw.cohort
+    ),
+    raw_general_info_data AS (
+        SELECT "Incubator_Course_Name" AS cohort_name, "Student_id" AS student_id, "Email" AS email
+        FROM old.general_information_sheet
+    ),
+    student_details_data AS (
+        SELECT id,email FROM raw.student_details
+    ),
+    resource_data AS (
+        SELECT id AS resource_id, title, total_duration AS watchtime_in_min
+        FROM raw.resource
+    ),
+    raw_student_session_info AS (
+        SELECT
+            "Email" AS email,
+            "Session_Code" AS session_code,
+            "Duration_in_secs" AS watchtime_in_secs,
+            "watched_on" AS watched_on
+        FROM old.student_session_information
+        WHERE "Session_Code" LIKE 'VID%' 
+           
+    ),
+    student_pre_recorded_cte AS (
+        SELECT
+            sd.id::INT AS student_id,
+            r.resource_id::INT AS resource_id,
+            c.cohort_code AS cohort_code,
+            ssi.watchtime_in_secs::INT AS watchtime_in_sec,
+            ssi.watched_on::DATE AS watched_at
+        FROM raw_student_session_info ssi
+        INNER JOIN student_details_data sd ON ssi.email = sd.email                    
+        INNER JOIN raw_general_info_data g ON sd.email = g.email
+        INNER JOIN cohort_data c ON g.cohort_name = c.cohort_name
+        INNER JOIN resource_data r ON ssi.session_code = r.title
+    )
+    INSERT INTO raw.student_pre_recorded (
+        student_id, resource_id, cohort_code, watchtime_in_sec, watched_at
+    )
+    SELECT * FROM student_pre_recorded_cte
+    ON CONFLICT (student_id, resource_id)
+    DO UPDATE SET                          
+        watchtime_in_sec = EXCLUDED.watchtime_in_sec,
+        watched_at = EXCLUDED.watched_at;
+""")
 
 # Execute queries
 
@@ -200,6 +247,13 @@ if __name__ == "__main__":
             print(f"   - Rows inserted/updated: {session_result.rowcount}")        
         except Exception as e:
             print(f"! Failed to insert into 'student_session': {e}")
+
+        try:
+            pre_recorded_result = conn.execute(student_pre_recorded_query)
+            print("* Data returned to 'student_pre_recorded' table.")
+            print(f"   - Rows inserted/updated: {pre_recorded_result.rowcount}")
+        except Exception as e:
+            print(f"! Failed to insert into 'student_pre_recorded': {e}")
 
         try:
             quiz_result = conn.execute(student_quiz_query)
