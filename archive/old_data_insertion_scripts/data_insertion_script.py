@@ -334,15 +334,15 @@ student_cohort_query = text("""
         SELECT
             RIGHT(CAST(EXTRACT(YEAR FROM c.start_date) AS TEXT), 2) || 
             c.cohort_code || 
-            LPAD(CAST(sd.id AS TEXT), 7, '0') AS student_code,
-            sd.id::INT AS student_id,
+            LPAD(CAST(sd.student_id AS TEXT), 7, '0') AS student_code,
+            sd.student_id::INT AS student_id,
             c.cohort_code::VARCHAR(6) AS cohort_code,
             CASE 
                 WHEN student_role ILIKE '%student leader%' THEN 'Yes'
                 ELSE 'No'
             END AS is_leader,
             NULL AS cohort_enroll_date
-        FROM student_details sd
+        FROM student_details_data sd
         INNER JOIN raw_general_info_data g
             ON sd.email = g.email
         INNER JOIN cohort_data c
