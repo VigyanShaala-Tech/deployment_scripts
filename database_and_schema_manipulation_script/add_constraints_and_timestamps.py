@@ -1,5 +1,5 @@
 from sqlalchemy import text
-from deployment_scripts_2.connection import get_engine
+from deployment_scripts.connection import get_engine
 
 engine = get_engine()
 
