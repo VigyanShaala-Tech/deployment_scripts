@@ -8,15 +8,12 @@ from deployment_scripts.connection import get_engine, get_session, metadata
 engine = get_engine()
 
 
-# Query to insert Incubator 7.0 student assignments
+# Query to insert Incubator student assignments
 
 student_assignment_query = text("""
-    WITH cohort_data AS (
-        SELECT cohort_code, cohort_name FROM raw.cohort 
-    ),
-    raw_general_info_data AS (
-        SELECT "Incubator_Course_Name" AS cohort_name, "Student_id" AS student_id, "Email" as email
-        FROM old.general_information_sheet
+    WITH raw_student_cohort_data AS (
+        SELECT student_id, cohort_code
+        FROM raw.student_cohort
     ),
     student_details_data AS (
         SELECT id,email FROM raw.student_details
@@ -42,7 +39,7 @@ student_assignment_query = text("""
             sd.id::INT AS student_id,
             r.resource_id::INT AS resource_id,
             NULL::INT AS mentor_id,
-            c.cohort_code AS cohort_code,
+            sc.cohort_code AS cohort_code,
             a.submission_status::raw.submission_status_enum AS submission_status,
             (CASE 
                 WHEN a.submission_status = 'under review' THEN 30
@@ -55,8 +52,7 @@ student_assignment_query = text("""
             a.assignment_file AS assignment_file
         FROM assignment_data a
         INNER JOIN student_details_data sd ON a.email = sd.email                    
-        INNER JOIN raw_general_info_data g ON sd.email = g.email
-        INNER JOIN cohort_data c ON g.cohort_name = c.cohort_name 
+        INNER JOIN raw_student_cohort_data sc ON sd.id = sc.student_id
         INNER JOIN resource_data r ON a.name = r.title
         WHERE TRIM(a.submitted_at) IS NOT NULL
             AND TRIM(a.submitted_at) <> ''
@@ -83,12 +79,9 @@ student_assignment_query = text("""
 
 
 student_session_query = text("""
-    WITH cohort_data AS (
-        SELECT cohort_code, cohort_name FROM raw.cohort
-    ),
-    raw_general_info_data AS (
-        SELECT "Incubator_Course_Name" AS cohort_name, "Student_id" AS student_id, "Email" AS email
-        FROM old.general_information_sheet
+    WITH raw_student_cohort_data AS (
+        SELECT student_id, cohort_code
+        FROM raw.student_cohort
     ),
     student_details_data AS (
         SELECT id,email FROM raw.student_details
@@ -116,9 +109,8 @@ student_session_query = text("""
             ssi.watched_on::DATE AS watched_on
         FROM raw_student_session_info ssi
         INNER JOIN student_details_data sd ON ssi.email = sd.email                    
-        INNER JOIN raw_general_info_data g ON sd.email = g.email
-        INNER JOIN cohort_data c ON g.cohort_name = c.cohort_name
-        INNER JOIN session_data s ON ssi.session_code = s.code AND c.cohort_code = s.cohort_code
+        INNER JOIN raw_student_cohort_data sc ON sd.id = sc.student_id
+        INNER JOIN session_data s ON ssi.session_code = s.code AND sc.cohort_code = s.cohort_code
     )
     INSERT INTO raw.student_session (
         student_id, session_id, duration_in_sec, watched_on
@@ -131,9 +123,9 @@ student_session_query = text("""
 """)
 
 student_quiz_query = text("""
-    WITH raw_general_info_data AS (
-        SELECT "Incubator_Course_Name" AS cohort_name, "Student_id" AS student_id, "Email" AS email
-        FROM old.general_information_sheet
+    WITH raw_student_cohort_data AS (
+        SELECT student_id, cohort_code
+        FROM raw.student_cohort
     ),
     quiz_data AS (
         SELECT
@@ -142,9 +134,7 @@ student_quiz_query = text("""
             "value" AS obtained_marks
         FROM old.incubator_quiz_monitoring
     ),
-    cohort_data AS (
-        SELECT cohort_code, cohort_name FROM raw.cohort
-    ),
+                          
     student_details_data AS (
         SELECT id,email FROM raw.student_details
     ),
@@ -157,15 +147,14 @@ student_quiz_query = text("""
         SELECT
             sd.id::INT AS student_id,
             r.resource_id::INT AS resource_id,
-            c.cohort_code AS cohort_code,
+            sc.cohort_code AS cohort_code,
             100::INT AS max_marks,
             q.obtained_marks::INT AS marks,
             NULL::INT AS reattempts,
             NULL::TIMESTAMP AS attempted_at
         FROM quiz_data q
         INNER JOIN student_details_data sd ON q.email = sd.email                    
-        INNER JOIN raw_general_info_data g ON sd.email = g.email
-        INNER JOIN cohort_data c ON g.cohort_name = c.cohort_name
+        INNER JOIN raw_student_cohort_data sc ON sd.id = sc.student_id
         INNER JOIN resource_data r ON q.quiz_name = r.title
     )
     INSERT INTO raw.student_quiz (
@@ -180,6 +169,119 @@ student_quiz_query = text("""
         reattempts = EXCLUDED.reattempts,
         attempted_at = EXCLUDED.attempted_at;
 """)
+
+student_pre_recorded_query = text("""
+    WITH raw_student_cohort_data AS (
+        SELECT student_id, cohort_code
+        FROM raw.student_cohort
+    ),
+    student_details_data AS (
+        SELECT id,email FROM raw.student_details
+    ),
+    resource_data AS (
+        SELECT id AS resource_id, title, total_duration AS watchtime_in_min
+        FROM raw.resource
+    ),
+    raw_student_session_info AS (
+        SELECT
+            "Email" AS email,
+            "Session_Code" AS session_code,
+            "Duration_in_secs" AS watchtime_in_secs,
+            "watched_on" AS watched_on
+        FROM old.student_session_information
+        WHERE "Session_Code" LIKE 'VID%' 
+           
+    ),
+    student_pre_recorded_cte AS (
+        SELECT
+            sd.id::INT AS student_id,
+            r.resource_id::INT AS resource_id,
+            sc.cohort_code AS cohort_code,
+            ssi.watchtime_in_secs::INT AS watchtime_in_sec,
+            ssi.watched_on::DATE AS watched_at
+        FROM raw_student_session_info ssi
+        INNER JOIN student_details_data sd ON ssi.email = sd.email                    
+        INNER JOIN raw_student_cohort_data sc ON sd.id = sc.student_id
+        INNER JOIN resource_data r ON ssi.session_code = r.title
+    )
+    INSERT INTO raw.student_pre_recorded (
+        student_id, resource_id, cohort_code, watchtime_in_sec, watched_at
+    )
+    SELECT * FROM student_pre_recorded_cte
+    ON CONFLICT (student_id, resource_id)
+    DO UPDATE SET                          
+        watchtime_in_sec = EXCLUDED.watchtime_in_sec,
+        watched_at = EXCLUDED.watched_at;
+""")
+
+student_cohort_query = text("""
+    WITH student_cohort_sheet AS (
+        SELECT
+            cohort_code,
+            student_id,
+            student_role
+        FROM public.uploadsincubator_batch_data_20251208101928
+    ),
+    
+    student_details_data AS (
+        SELECT
+            id AS student_id,
+            email
+        FROM raw.student_details
+    ),
+
+    cohort_data AS (
+        SELECT
+            cohort_code,
+            cohort_name,
+            start_date
+        FROM raw.cohort
+    ),
+
+    student_cohort_data AS (
+        SELECT
+            RIGHT(CAST(EXTRACT(YEAR FROM c.start_date) AS TEXT), 2)
+            || c.cohort_code
+            || LPAD(CAST(sd.student_id AS TEXT), 7, '0') AS student_code,
+
+            sd.student_id::INT AS student_id,
+            c.cohort_code::VARCHAR(6) AS cohort_code,
+
+            CASE 
+                WHEN sc.student_role ILIKE '%student leader%' THEN TRUE
+                ELSE FALSE
+            END AS is_leader,
+
+            NULL::DATE AS cohort_enroll_date
+        FROM student_details_data sd
+        INNER JOIN student_cohort_sheet sc
+            ON sd.student_id = sc.student_id
+        INNER JOIN cohort_data c
+            ON sc.cohort_code = c.cohort_code
+    )
+
+    INSERT INTO raw.student_cohort (
+        student_code, 
+        student_id, 
+        cohort_code, 
+        is_leader, 
+        cohort_enroll_date
+    )
+    SELECT 
+        student_code,
+        student_id,
+        cohort_code,
+        is_leader,
+        cohort_enroll_date 
+    FROM student_cohort_data
+
+    ON CONFLICT (student_code, student_id)
+    DO UPDATE SET
+        cohort_code = EXCLUDED.cohort_code,
+        is_leader = EXCLUDED.is_leader,
+        cohort_enroll_date = EXCLUDED.cohort_enroll_date;
+""")
+
 
 
 # Execute queries
@@ -202,8 +304,22 @@ if __name__ == "__main__":
             print(f"! Failed to insert into 'student_session': {e}")
 
         try:
+            pre_recorded_result = conn.execute(student_pre_recorded_query)
+            print("* Data returned to 'student_pre_recorded' table.")
+            print(f"   - Rows inserted/updated: {pre_recorded_result.rowcount}")
+        except Exception as e:
+            print(f"! Failed to insert into 'student_pre_recorded': {e}")
+
+        try:
             quiz_result = conn.execute(student_quiz_query)
             print("* Data returned to 'student_quiz' table.")
             print(f"   - Rows inserted/updated: {quiz_result.rowcount}")
         except Exception as e:
             print(f"! Failed to insert into 'student_quiz': {e}")
+
+        try:
+            student_cohort_result = conn.execute(student_cohort_query)
+            print("* Data returned to 'student_cohort' table.")
+            print(f"   - Rows inserted/updated: {student_cohort_result.rowcount}")
+        except Exception as e:
+            print(f"! Failed to insert into 'student_cohort': {e}")

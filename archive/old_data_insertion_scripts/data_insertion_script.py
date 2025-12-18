@@ -308,10 +308,54 @@ student_quiz_query = text("""
     SELECT * FROM student_quiz_data
 """)
 
+student_cohort_query = text("""
+    WITH raw_general_info_data AS (
+        SELECT
+            "Incubator_Course_Name" AS cohort_name,
+            "Student_id" AS student_id,
+            "Student_Role" AS student_role,
+            "Email" AS email
+        FROM old.general_information_sheet
+    ),
+    student_details_data AS (
+        SELECT
+            id AS student_id,
+            email AS email
+        FROM raw.student_details
+    ),
+    cohort_data AS (
+        SELECT
+            cohort_code,
+            cohort_name,
+            start_date
+        FROM raw.cohort
+    ),
+    student_cohort_data AS (
+        SELECT
+            RIGHT(CAST(EXTRACT(YEAR FROM c.start_date) AS TEXT), 2) || 
+            c.cohort_code || 
+            LPAD(CAST(sd.id AS TEXT), 7, '0') AS student_code,
+            sd.id::INT AS student_id,
+            c.cohort_code::VARCHAR(6) AS cohort_code,
+            CASE 
+                WHEN student_role ILIKE '%student leader%' THEN 'Yes'
+                ELSE 'No'
+            END AS is_leader,
+            NULL AS cohort_enroll_date
+        FROM student_details sd
+        INNER JOIN raw_general_info_data g
+            ON sd.email = g.email
+        INNER JOIN cohort_data c
+            ON g.cohort_name = c.cohort_name
+    )
+    SELECT * FROM student_cohort_data
+""")
+
+
 try:
     # Load as DataFrame and Insert into target table (append only)
-    programs_df = pd.read_sql(programs_query, engine)
-    programs_df.to_sql("program", engine, if_exists="append", index=False,schema="intermediate")
+    #programs_df = pd.read_sql(programs_query, engine)
+    #programs_df.to_sql("program", engine, if_exists="append", index=False,schema="intermediate")
 
     #cohort_df = pd.read_sql(cohort_query, engine) 
     #cohort_df.to_sql("cohort", engine, if_exists="append", index=False,schema="intermediate")
@@ -333,8 +377,9 @@ try:
 
     #student_assignment_df = pd.read_sql(student_assignment_query, engine)
     #student_assignment_df.to_sql("student_assignment", engine, if_exists="append", index=False, schema="intermediate")
-    
 
+    student_cohort_df = pd.read_sql(student_cohort_query, engine)
+    student_cohort_df.to_sql("student_cohort", engine, if_exists="append", index=False, schema="raw")
 
     print("Data inserted successfully into tables.")
 
