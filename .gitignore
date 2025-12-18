@@ -21,6 +21,7 @@ config.yaml
 secrets.json
 credentials.json
 config.env
+
 # ---------------------------------
 # Logs, monitoring & debug outputs
 # ---------------------------------
