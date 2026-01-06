@@ -5,7 +5,7 @@ from deployment_scripts.connection import get_engine, get_session, metadata
 engine = get_engine()
 
 insert_students_sql = text("""
-INSERT INTO raw.student_details_copy (
+INSERT INTO raw.student_details (
     first_name,
     last_name,
     gender,
