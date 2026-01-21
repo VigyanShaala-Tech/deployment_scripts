@@ -246,6 +246,18 @@ create_cohort_table = text(f"""
     );
 """)
 
+create_activity_log_table = text(f"""
+    CREATE TABLE IF NOT EXISTS old.activity_log (
+    id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    activity_time TIMESTAMPTZ,
+    college_name TEXT,
+    student_name TEXT,
+    assignment_name TEXT,
+    assignment_status TEXT,
+    action TEXT,
+    feedback TEXT
+);
+""")
 # Run the creation script
 try:
     with engine.begin() as conn:  # begin() ensures transaction safety
@@ -262,7 +274,8 @@ try:
         #conn.execute(create_student_quiz_table)
         #conn.execute(create_mentor_details_table)
         #conn.execute(create_student_assignment_table)
-        conn.execute(create_cohort_table)
+        #conn.execute(create_cohort_table)
+        conn.execute(create_activity_log_table)
 
 
         print("✅ table created successfully.")
