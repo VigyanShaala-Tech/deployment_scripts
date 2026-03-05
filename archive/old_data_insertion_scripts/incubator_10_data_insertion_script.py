@@ -34,7 +34,7 @@ SELECT
     NOW() AT TIME ZONE 'Asia/Kolkata',
     NOW() AT TIME ZONE 'Asia/Kolkata',
     NULL
-FROM old.telangana_feb_10_0_gi_20260207081828
+FROM old.uploadstelangana_feb_10_0_gi_f_20260207052038
 WHERE full_name IS NOT NULL;
 """)
 
@@ -58,8 +58,8 @@ SELECT
     u.registration_date,
     NOW() AT TIME ZONE 'Asia/Kolkata',
     NOW() AT TIME ZONE 'Asia/Kolkata'
-FROM raw.student_details_copy sd
-JOIN old.telangana_feb_10_0_gi_20260207081828 u
+FROM raw.student_details sd
+JOIN old.telangana_10_0_gi_20260305143510 u
     ON sd.id = u.student_id;
 """)
 
@@ -130,9 +130,9 @@ SELECT
 
     NOW() AT TIME ZONE 'Asia/Kolkata' AS inserted_at,
     NOW() AT TIME ZONE 'Asia/Kolkata' AS updated_at
-FROM raw.student_details_copy sd
+FROM raw.student_details sd
 
-JOIN old.uploadstelangana_feb_10_0_gi_f_20260207052038 u
+JOIN old.telangana_10_0_gi_20260305143510 u
     ON sd.id = u.student_id
 LEFT JOIN raw.course_mapping cmc
     ON LOWER(TRIM(u.currently_pursuing_degree)) = LOWER(TRIM(cmc.display_name))
@@ -168,7 +168,7 @@ try:
     with engine.begin() as conn:
         conn.execute(insert_students_sql)     #  insert students
         #update email id as per combination of student_id + vigyanshaala.com
-        
+
         conn.execute(text("""                           
         UPDATE raw.student_details
         SET email = id || '@vigyanshaala.com'
