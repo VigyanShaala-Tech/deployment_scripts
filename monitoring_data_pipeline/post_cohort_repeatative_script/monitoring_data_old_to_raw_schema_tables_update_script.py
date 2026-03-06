@@ -220,7 +220,7 @@ student_cohort_query = text("""
             cohort_code,
             student_id,
             student_role
-        FROM public.uploadsincubator_batch_data_20251208101928
+        FROM old.uploadstelangana_march_6_20260305140441
     ),
     
     student_details_data AS (
@@ -316,10 +316,11 @@ if __name__ == "__main__":
             print(f"   - Rows inserted/updated: {quiz_result.rowcount}")
         except Exception as e:
             print(f"! Failed to insert into 'student_quiz': {e}")
-
+        '''
         try:
             student_cohort_result = conn.execute(student_cohort_query)
             print("* Data returned to 'student_cohort' table.")
             print(f"   - Rows inserted/updated: {student_cohort_result.rowcount}")
         except Exception as e:
             print(f"! Failed to insert into 'student_cohort': {e}")
+        '''
