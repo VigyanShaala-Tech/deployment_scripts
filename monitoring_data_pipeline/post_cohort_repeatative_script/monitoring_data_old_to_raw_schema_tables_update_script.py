@@ -2,6 +2,7 @@ import os
 import sys
 import pandas as pd
 from sqlalchemy import text
+import time
 
 from deployment_scripts.connection import get_engine, get_session, metadata
 
@@ -288,39 +289,38 @@ student_cohort_query = text("""
 
 if __name__ == "__main__":
 
-    with engine.begin() as conn:
-        try:
-            assignment_result = conn.execute(student_assignment_query)
-            print("* Data returned to 'student_assignment' table.")
-            print(f"   - Rows inserted/updated: {assignment_result.rowcount}")        
-        except Exception as e:
-            print(f"! Failed to insert into 'student_assignment': {e}")
+    start_time = time.time()
 
-        try:    
-            session_result = conn.execute(student_session_query)
-            print("* Data returned to 'student_session' table.")
-            print(f"   - Rows inserted/updated: {session_result.rowcount}")        
-        except Exception as e:
-            print(f"! Failed to insert into 'student_session': {e}")
+    print("Execution started...\n")
 
-        try:
-            pre_recorded_result = conn.execute(student_pre_recorded_query)
-            print("* Data returned to 'student_pre_recorded' table.")
-            print(f"   - Rows inserted/updated: {pre_recorded_result.rowcount}")
-        except Exception as e:
-            print(f"! Failed to insert into 'student_pre_recorded': {e}")
+    query_tasks = [
+        ("student_assignment", student_assignment_query),
+        ("student_session", student_session_query),
+        ("student_pre_recorded", student_pre_recorded_query),
+        ("student_quiz", student_quiz_query)
+    ]
 
+    for table_name, query in query_tasks:
         try:
-            quiz_result = conn.execute(student_quiz_query)
-            print("* Data returned to 'student_quiz' table.")
-            print(f"   - Rows inserted/updated: {quiz_result.rowcount}")
+            with engine.begin() as conn:
+                result = conn.execute(query)
+                print(f"* Data returned to '{table_name}' table.")
+                print(f"   - Rows inserted/updated: {result.rowcount}\n")
         except Exception as e:
-            print(f"! Failed to insert into 'student_quiz': {e}")
-        '''
-        try:
+            print(f"! Failed to insert into '{table_name}': {e}\n")
+
+    '''
+    try:
+        with engine.begin() as conn:
             student_cohort_result = conn.execute(student_cohort_query)
             print("* Data returned to 'student_cohort' table.")
             print(f"   - Rows inserted/updated: {student_cohort_result.rowcount}")
-        except Exception as e:
-            print(f"! Failed to insert into 'student_cohort': {e}")
-        '''
+    except Exception as e:
+        print(f"! Failed to insert into 'student_cohort': {e}")
+    '''
+
+    end_time = time.time()
+    total_runtime = end_time - start_time
+
+    print("Execution completed.")
+    print(f"Total runtime: {total_runtime:.2f} seconds")
